@@ -238,45 +238,6 @@
 .pm-overdue-card {
   border-color: color-mix(in srgb, var(--color-red) 55%, var(--background-modifier-border));
 }
-.pm-project-card-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-}
-.pm-project-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-normal);
-  line-height: 1.3;
-  flex: 1;
-  min-width: 0;
-}
-.pm-project-chip {
-  background: color-mix(in srgb, var(--pm-status-color, var(--text-faint)) 16%, transparent);
-  color: var(--pm-status-color, var(--text-muted));
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: none;
-  flex-shrink: 0;
-}
-.pm-project-meta {
-  display: grid;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.pm-project-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.pm-project-actions .pm-btn {
-  flex: 1 1 auto;
-}
-
 .pm-task-card {
   position: relative;
   background: var(--background-primary);
@@ -324,24 +285,7 @@
   opacity: 0.85;
 }
 
-/* Full text pill — still used on Project Dashboard cards */
-.pm-priority-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 9px;
-  border-radius: 999px;
-  margin-bottom: 5px;
-  letter-spacing: 0.02em;
-}
-/* Priority is an ordered intensity scale, so it takes colour from the status
-   palette (good→critical) rather than categorical slots, always with a label. */
-.pm-priority-low { background: color-mix(in srgb, var(--pm-status-good) 18%, transparent); color: var(--pm-status-good); }
-.pm-priority-medium { background: color-mix(in srgb, var(--pm-status-warning) 20%, transparent); color: var(--text-normal); }
-.pm-priority-high { background: color-mix(in srgb, var(--pm-status-serious) 20%, transparent); color: var(--text-normal); }
-.pm-priority-critical { background: color-mix(in srgb, var(--pm-status-critical) 18%, transparent); color: var(--pm-status-critical); }
-
-/* Small priority dot — used on Kanban task cards */
+/* Small priority dot — used on Kanban task cards and Project Dashboard cards */
 .pm-pr-dot {
   width: 8px;
   height: 8px;
@@ -866,6 +810,74 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
   .pm-db-calcell, .pm-db-tab { transition: none; }
   .pm-db-calcell:hover { transform: none; }
 }
+
+/* ===== Date picker ===== */
+/* A compact popup calendar for "Due date" and manual time-entry date fields.
+   It draws in whichever calendar (Jalali/Gregorian) the plugin is set to, so a
+   picked date reads the same as everywhere else on the dashboard — the value
+   underneath is still a plain Gregorian ISO string. */
+.pm-dp { position: relative; }
+.pm-dp-trigger {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12.5px;
+  cursor: pointer;
+  min-width: 168px;
+}
+.pm-dp-trigger:hover { border-color: var(--text-faint); }
+.pm-dp-trigger:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.pm-dp-trigger-label { flex: 1; unicode-bidi: plaintext; }
+.pm-dp-trigger-label.is-empty { color: var(--text-faint); }
+.pm-dp-trigger-icon { flex-shrink: 0; opacity: 0.7; font-size: 12px; }
+.pm-dp-clear {
+  flex-shrink: 0; font-size: 10px; color: var(--text-faint);
+  padding: 1px 3px; border-radius: 4px; line-height: 1;
+}
+.pm-dp-clear:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+
+.pm-dp-panel {
+  position: absolute; z-index: 80; top: calc(100% + 6px); inset-inline-start: 0;
+  width: 250px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.28);
+}
+.pm-dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pm-dp-headlabel { font-size: 12px; font-weight: 650; color: var(--text-normal); unicode-bidi: plaintext; }
+.pm-dp-navbtn {
+  appearance: none; background: transparent; border: none; cursor: pointer;
+  color: var(--text-muted); border-radius: 5px; padding: 2px 8px; font-size: 15px; line-height: 1;
+}
+.pm-dp-navbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.pm-dp-weekdays, .pm-dp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.pm-dp-weekday { font-size: 9.5px; color: var(--text-faint); text-align: center; padding-bottom: 4px; }
+.pm-dp-cell {
+  appearance: none; background: transparent; border: none; cursor: pointer;
+  box-sizing: border-box; width: 100%; min-width: 0; padding: 0; margin: 0;
+  aspect-ratio: 1; border-radius: 6px; font-size: 11px; color: var(--text-normal);
+  font-variant-numeric: tabular-nums;
+}
+.pm-dp-cell.is-empty { cursor: default; pointer-events: none; }
+.pm-dp-cell:hover:not(.is-empty) { background: var(--background-modifier-hover); }
+.pm-dp-cell.is-today { outline: 1px solid var(--text-accent); outline-offset: -1px; }
+.pm-dp-cell.is-selected { background: var(--interactive-accent); color: var(--text-on-accent); }
+.pm-dp-cell:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.pm-dp-foot {
+  display: flex; justify-content: space-between; gap: 8px; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--background-modifier-border);
+}
+.pm-dp-footbtn {
+  appearance: none; background: transparent; cursor: pointer;
+  border: 1px solid var(--background-modifier-border); border-radius: 6px;
+  color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 10px;
+}
+.pm-dp-footbtn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 
 /* ===== Utility ===== */
 /* Toggled from code with addClass/toggleClass rather than writing element

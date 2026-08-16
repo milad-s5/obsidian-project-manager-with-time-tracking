@@ -5,6 +5,7 @@ import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/Front
 import { todayString } from "../utils/DateUtils";
 import { resetTimerWithConfirm } from "./TimerBar";
 import { normalizeStatus } from "../utils/StatusColors";
+import { mountDatePicker } from "./DatePicker";
 
 export class TaskModal extends Modal {
   // Projects not yet started or in progress — only these can be picked for a task
@@ -134,9 +135,12 @@ export class TaskModal extends Modal {
       d.setValue(this.priority).onChange((v) => (this.priority = v));
     });
 
-    new Setting(contentEl).setName("Due date").addText((t) =>
-      t.setPlaceholder("YYYY-MM-DD").setValue(this.due).onChange((v) => (this.due = v))
-    );
+    const dueSetting = new Setting(contentEl).setName("Due date");
+    mountDatePicker(dueSetting.controlEl, {
+      cal: this.plugin.calendar,
+      value: this.due,
+      onChange: (v) => (this.due = v),
+    });
 
     // Time tracking section
     if (!this.isNew && this.file) {
@@ -222,11 +226,13 @@ export class TaskModal extends Modal {
           t.setPlaceholder("e.g. 4.5").setValue(this.manualHours).onChange((v) => (this.manualHours = v))
         );
 
-      new Setting(manualDiv)
-        .setName("Date")
-        .addText((t) =>
-          t.setPlaceholder("YYYY-MM-DD").setValue(todayString()).onChange((v) => (this.manualDate = v))
-        );
+      const dateSetting = new Setting(manualDiv).setName("Date");
+      mountDatePicker(dateSetting.controlEl, {
+        cal: this.plugin.calendar,
+        value: this.manualDate,
+        placeholder: "Today",
+        onChange: (v) => (this.manualDate = v),
+      });
 
       manualDiv
         .createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Add Entry" })

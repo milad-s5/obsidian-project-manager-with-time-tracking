@@ -981,42 +981,31 @@ export class ProjectDashboardView extends ItemView {
     });
     card.addEventListener("dragend", () => card.removeClass("pm-dragging"));
 
-    const priorityClass = `pm-priority-${project.priority.toLowerCase()}`;
-    card.createDiv({ cls: `pm-priority-badge ${priorityClass}`, text: project.priority });
-
-    const header = card.createDiv({ cls: "pm-project-card-header" });
-    header.createDiv({ cls: "pm-project-title", text: project.title });
+    // Title + priority dot — same head layout as a Kanban task card. Status is
+    // already said by the column, so it does not repeat on the card itself.
+    const head = card.createDiv({ cls: "pm-card-head" });
+    head.createDiv({ cls: "pm-card-title", text: project.title });
     const notes = this.noted.get(project.file.path);
-    if (notes) renderNoteBadge(header, notes);
+    if (notes) renderNoteBadge(head, notes);
     if (project.archived) {
-      header.createSpan({
+      head.createSpan({
         cls: "pm-archived-badge",
         text: "🗄",
         attr: { "aria-label": "Archived — the file lives in the archive folder" },
       });
     }
-    const chip = header.createDiv({ cls: "pm-project-chip", text: project.status });
-    chip.setCssProps({ "--pm-status-color": statusColor(project.status) });
+    const prDot = head.createDiv({ cls: "pm-pr-dot" });
+    prDot.setCssProps({ "--pm-priority-color": priorityColor(project.priority) });
+    prDot.setAttribute("aria-label", `Priority: ${project.priority}`);
 
-    const meta = card.createDiv({ cls: "pm-project-meta" });
-    meta.createDiv({ cls: "pm-project-stat", text: `Due: ${project.due || "—"}` });
-    meta.createDiv({
-      cls: "pm-project-stat",
-      text: `Tasks: ${project.doneCount}/${project.taskCount} done`,
-    });
-    meta.createDiv({ cls: "pm-project-stat", text: `Hours: ${formatHours(project.hours)}` });
-
-    const actions = card.createDiv({ cls: "pm-project-actions" });
-    actions.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Edit" })
-      .addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.plugin.openProjectModal(project.file, this.currentWorkspace);
-      });
-    actions.createEl("button", { cls: "pm-btn", text: "Open note" })
-      .addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.app.workspace.getLeaf(false).openFile(project.file);
-      });
+    // Meta row — due · tasks done · hours, all on one line
+    const meta = card.createDiv({ cls: "pm-card-meta" });
+    if (project.due) {
+      meta.createSpan({ cls: overdue ? "pm-overdue" : "", text: `📅 ${this.plugin.calendar.label(project.due)}` });
+      meta.createSpan({ cls: "pm-meta-dot" });
+    }
+    meta.createSpan({ text: `☑ ${project.doneCount}/${project.taskCount}` });
+    meta.createSpan({ cls: "pm-card-hours", text: `⏱ ${formatHours(project.hours)}` });
 
     card.addEventListener("click", () => this.plugin.openProjectModal(project.file, this.currentWorkspace));
 

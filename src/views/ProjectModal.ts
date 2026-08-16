@@ -3,6 +3,7 @@ import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { normalizeStatus } from "../utils/StatusColors";
+import { mountDatePicker } from "./DatePicker";
 
 export class ProjectModal extends Modal {
   plugin: ProjectManagerPlugin;
@@ -69,9 +70,12 @@ export class ProjectModal extends Modal {
       d.setValue(this.priority).onChange((v) => (this.priority = v));
     });
 
-    new Setting(contentEl).setName("Due date").addText((t) =>
-      t.setPlaceholder("YYYY-MM-DD").setValue(this.due).onChange((v) => (this.due = v))
-    );
+    const dueSetting = new Setting(contentEl).setName("Due date");
+    mountDatePicker(dueSetting.controlEl, {
+      cal: this.plugin.calendar,
+      value: this.due,
+      onChange: (v) => (this.due = v),
+    });
 
     const btnRow = contentEl.createDiv({ cls: "pm-modal-btns" });
     btnRow.createEl("button", { cls: "pm-btn pm-btn-primary", text: this.isNew ? "Create" : "Save" })

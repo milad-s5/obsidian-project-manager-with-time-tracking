@@ -221,7 +221,7 @@ export class KanbanView extends ItemView {
     if (fm.due) {
       const isOverdue = fm.due < new Date().toISOString().slice(0, 10) && status !== "done";
       if (fm.project) meta.createSpan({ cls: "pm-meta-dot" });
-      meta.createSpan({ cls: isOverdue ? "pm-overdue" : "", text: `📅 ${fm.due}` });
+      meta.createSpan({ cls: isOverdue ? "pm-overdue" : "", text: `📅 ${this.plugin.calendar.label(fm.due)}` });
     }
     meta.createSpan({ cls: "pm-card-hours", text: `⏱ ${fm.total_hours ?? 0}h` });
 
