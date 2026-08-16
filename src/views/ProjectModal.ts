@@ -1,9 +1,10 @@
 import { App, Modal, TFile, Notice, Setting } from "obsidian";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
-import { renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
-import { normalizeStatus } from "../utils/StatusColors";
+import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
+import { isMutedStatus, normalizeStatus, statusColor } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
+import { formatHours } from "./DashboardCharts";
 
 export class ProjectModal extends Modal {
   plugin: ProjectManagerPlugin;
@@ -40,7 +41,7 @@ export class ProjectModal extends Modal {
     }
   }
 
-  onOpen(): void {
+  async onOpen(): Promise<void> {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("pm-modal");
@@ -77,6 +78,10 @@ export class ProjectModal extends Modal {
       onChange: (v) => (this.due = v),
     });
 
+    if (!this.isNew && this.file) {
+      await this.renderTasksSection(contentEl);
+    }
+
     const btnRow = contentEl.createDiv({ cls: "pm-modal-btns" });
     btnRow.createEl("button", { cls: "pm-btn pm-btn-primary", text: this.isNew ? "Create" : "Save" })
       .addEventListener("click", () => void this.submitAndClose());
@@ -92,6 +97,66 @@ export class ProjectModal extends Modal {
 
     btnRow.createEl("button", { cls: "pm-btn", text: "Cancel" })
       .addEventListener("click", () => this.close());
+  }
+
+  /** Every task pointing at this project — open ones first, then closed ones,
+   *  each due soonest first, so what needs doing next is at the top. */
+  private async renderTasksSection(contentEl: HTMLElement): Promise<void> {
+    const file = this.file;
+    if (!file) return;
+    const slug = file.basename;
+
+    const files = await this.plugin.taskManager.getTasks(this.ws);
+    const tasks = files
+      .map((f) => ({ file: f, fm: this.app.metadataCache.getFileCache(f)?.frontmatter ?? {} }))
+      .filter((t) => linkSlug(t.fm.project) === slug);
+
+    contentEl.createEl("h3", { text: `Tasks (${tasks.length})` });
+
+    if (!tasks.length) {
+      contentEl.createDiv({ cls: "pm-db-empty", text: "No tasks for this project yet." });
+      return;
+    }
+
+    tasks.sort((a, b) => {
+      const am = isMutedStatus(normalizeStatus(a.fm.status));
+      const bm = isMutedStatus(normalizeStatus(b.fm.status));
+      if (am !== bm) return am ? 1 : -1;
+      const ad = String(a.fm.due ?? "");
+      const bd = String(b.fm.due ?? "");
+      if (ad && bd) return ad < bd ? -1 : ad > bd ? 1 : 0;
+      return ad ? -1 : bd ? 1 : 0;
+    });
+
+    const list = contentEl.createDiv({ cls: "pm-db-list" });
+    for (const t of tasks) {
+      const status = normalizeStatus(t.fm.status ?? "todo");
+      const priority = String(t.fm.priority ?? "medium");
+      const due = String(t.fm.due ?? "");
+
+      const item = list.createDiv({ cls: "pm-db-item", attr: { tabindex: "0" } });
+      const dot = item.createDiv({ cls: "pm-db-item-dot" });
+      dot.setCssStyles({ background: statusColor(status) });
+      const main = item.createDiv({ cls: "pm-db-item-main" });
+      main.createDiv({ cls: "pm-db-item-title", text: String(t.fm.title ?? t.file.basename) });
+      main.createDiv({
+        cls: "pm-db-item-meta",
+        text: due
+          ? `${status} · ${priority} · due ${this.plugin.calendar.label(due)}`
+          : `${status} · ${priority}`,
+      });
+      const hours = Number(t.fm.total_hours ?? 0) || 0;
+      item.createDiv({ cls: "pm-db-item-val", text: formatHours(hours) });
+
+      const open = () => {
+        this.close();
+        this.plugin.openTaskModal(t.file, this.ws);
+      };
+      item.addEventListener("click", open);
+      item.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+      });
+    }
   }
 
   private async submitAndClose(): Promise<void> {
