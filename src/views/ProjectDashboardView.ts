@@ -16,6 +16,8 @@ import {
   dayTitle, heroFigure, renderCalendar, stackedBar, statTile,
 } from "./DashboardCharts";
 import { addDays, daysBetween, rangeDays, todayISO } from "../utils/Jalali";
+import { captureFocus, restoreFocus } from "../utils/FocusUtils";
+import { listProjectOptions } from "../utils/WorkspacePaths";
 
 export const PROJECT_DASHBOARD_VIEW_TYPE = "project-manager-project-dashboard";
 
@@ -52,6 +54,10 @@ export class ProjectDashboardView extends ItemView {
   currentWorkspace: Workspace;
   filterStatus = "";
   filterPriority = "";
+  filterProjectQuery = "";
+  /** Unique per leaf, so this view's <datalist> id cannot collide with another
+   *  dashboard leaf open at the same time */
+  private readonly instanceId = Math.random().toString(36).slice(2);
 
   private tab: TabId = "projects";
   private range: RangeId = "month";
@@ -119,6 +125,10 @@ export class ProjectDashboardView extends ItemView {
     const container = this.containerEl.children[1] as HTMLElement;
     const prevScroll = container.querySelector<HTMLElement>(".pm-db-scroll");
     if (prevScroll) this.scrollTop = prevScroll.scrollTop;
+    // A full render rebuilds every element, including whichever filter input
+    // was mid-typing — so its focus and cursor are captured here and put back
+    // on the new element afterwards, rather than silently dropping the field.
+    const focus = captureFocus(container);
 
     container.empty();
     container.addClass("pm-dashboard-container");
@@ -138,6 +148,7 @@ export class ProjectDashboardView extends ItemView {
     }
 
     scroll.scrollTop = this.scrollTop;
+    restoreFocus(container, focus);
   }
 
   // ── Toolbar and tabs ────────────────────────────────────────────────
@@ -174,8 +185,26 @@ export class ProjectDashboardView extends ItemView {
     // Period navigation — only where a period means anything
     if (this.tab !== "projects") this.renderPeriodNav(toolbar);
 
-    // Status and priority filters only narrow the projects tab, so they show only there
+    // Project name, status and priority filters only narrow the projects tab
     if (this.tab === "projects") {
+      // A text field backed by a <datalist> of real project titles, so both
+      // ways of narrowing it down work: pick one from the list, or just type
+      // part of a name.
+      const projListId = `pm-project-list-${this.instanceId}`;
+      const projInput = toolbar.createEl("input", {
+        cls: "pm-filter-input",
+        type: "text",
+        placeholder: "Filter project...",
+        attr: { "data-filter": "project", list: projListId },
+      });
+      projInput.value = this.filterProjectQuery;
+      projInput.addEventListener("input", async () => {
+        this.filterProjectQuery = projInput.value.trim();
+        await this.render();
+      });
+      const projList = toolbar.createEl("datalist", { attr: { id: projListId } });
+      listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
+
       const statusSelect = toolbar.createEl("select", { cls: "pm-filter-select" });
       statusSelect.createEl("option", { value: "", text: "All statuses" });
       this.plugin.settings.statuses.forEach((status) => {
@@ -202,7 +231,7 @@ export class ProjectDashboardView extends ItemView {
     toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => this.plugin.openNewTaskModal(this.currentWorkspace));
 
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "+ New Project" })
+    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
       .addEventListener("click", () => this.plugin.openNewProjectModal(this.currentWorkspace));
 
     toolbar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Kanban" })
@@ -935,9 +964,11 @@ export class ProjectDashboardView extends ItemView {
       const header = col.createDiv({ cls: "pm-col-header" });
       header.createSpan({ cls: "pm-col-title", text: status });
 
+      const nameQuery = this.filterProjectQuery.toLowerCase();
       const colProjects = data.projects.filter((p) => {
         if (this.filterPriority && p.priority !== this.filterPriority) return false;
         if (this.filterStatus && p.status !== this.filterStatus) return false;
+        if (nameQuery && !p.title.toLowerCase().includes(nameQuery)) return false;
         return p.status === status;
       });
 

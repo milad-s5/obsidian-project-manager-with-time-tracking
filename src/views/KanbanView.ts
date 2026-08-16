@@ -4,7 +4,8 @@ import { Workspace } from "../types";
 import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { statusColor, priorityColor, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
-import { isArchivedPath } from "../utils/WorkspacePaths";
+import { isArchivedPath, listProjectOptions } from "../utils/WorkspacePaths";
+import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, tickTimerDisplays } from "./TimerBar";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
@@ -17,6 +18,10 @@ export class KanbanView extends ItemView {
   currentWorkspace: Workspace;
   filterProject: string = "";
   filterPriority: string = "";
+  filterTask: string = "";
+  /** Unique per leaf, so this view's <datalist> id cannot collide with another
+   *  Kanban leaf open at the same time */
+  private readonly instanceId = Math.random().toString(36).slice(2);
   /** Paths of tasks holding text beyond the template → marker on the card */
   private noted: Map<string, NoteInfo> = new Map();
   /** Closed columns the user expanded — has to survive the next render */
@@ -60,6 +65,10 @@ export class KanbanView extends ItemView {
 
   async render(): Promise<void> {
     const container = this.containerEl.children[1] as HTMLElement;
+    // A full render rebuilds every element, including whichever filter input
+    // was mid-typing — so its focus and cursor are captured here and put back
+    // on the new element afterwards, rather than silently dropping the field.
+    const focus = captureFocus(container);
     container.empty();
     container.addClass("pm-kanban-container");
 
@@ -71,6 +80,11 @@ export class KanbanView extends ItemView {
     const statuses = this.plugin.settings.statuses;
     const tasks = await this.plugin.taskManager.getTasks(this.currentWorkspace);
     this.noted = await this.plugin.noteScanner.scan(tasks);
+    const taskQuery = this.filterTask.toLowerCase();
+    const projectQuery = this.filterProject.toLowerCase();
+    // Matched by title, since that is what the field shows and what the
+    // datalist suggests — the slug behind it is never shown to the user.
+    const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
 
     for (const status of statuses) {
       const col = board.createDiv({ cls: "pm-kanban-col" });
@@ -79,8 +93,13 @@ export class KanbanView extends ItemView {
         const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
         if (!fm) return false;
         if (normalizeStatus(fm.status) !== status) return false;
-        if (this.filterProject && linkSlug(fm.project) !== this.filterProject) return false;
+        if (projectQuery) {
+          const slug = linkSlug(fm.project);
+          const title = (projectTitleBySlug.get(slug) ?? slug).toLowerCase();
+          if (!title.includes(projectQuery)) return false;
+        }
         if (this.filterPriority && fm.priority !== this.filterPriority) return false;
+        if (taskQuery && !String(fm.title ?? f.basename).toLowerCase().includes(taskQuery)) return false;
         return true;
       });
 
@@ -137,6 +156,8 @@ export class KanbanView extends ItemView {
         await this.render();
       });
     }
+
+    restoreFocus(container, focus);
   }
 
   /**
@@ -311,15 +332,35 @@ export class KanbanView extends ItemView {
       }
     });
 
-    // Filter by project
+    // Filter by project — a text field backed by a <datalist> of real project
+    // titles, so both ways of narrowing it down work: pick one from the list,
+    // or just type part of a name. Matching is by title (see render()), never
+    // by the file slug, which is never shown anywhere for a user to type.
+    const projListId = `pm-project-list-${this.instanceId}`;
     const projInput = toolbar.createEl("input", {
       cls: "pm-filter-input",
       type: "text",
       placeholder: "Filter project...",
+      attr: { "data-filter": "project", list: projListId },
     });
     projInput.value = this.filterProject;
     projInput.addEventListener("input", async () => {
       this.filterProject = projInput.value.trim();
+      await this.render();
+    });
+    const projList = toolbar.createEl("datalist", { attr: { id: projListId } });
+    listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
+
+    // Filter by task title
+    const taskInput = toolbar.createEl("input", {
+      cls: "pm-filter-input",
+      type: "text",
+      placeholder: "Filter task...",
+      attr: { "data-filter": "task" },
+    });
+    taskInput.value = this.filterTask;
+    taskInput.addEventListener("input", async () => {
+      this.filterTask = taskInput.value.trim();
       await this.render();
     });
 
@@ -342,7 +383,7 @@ export class KanbanView extends ItemView {
       });
 
     // New project button
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "+ New Project" })
+    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
       .addEventListener("click", () => {
         this.plugin.openNewProjectModal(this.currentWorkspace);
       });
