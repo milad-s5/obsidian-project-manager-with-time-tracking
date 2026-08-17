@@ -290,7 +290,11 @@ export default class ProjectManagerPlugin extends Plugin {
   refreshKanban(): void {
     const leaves = this.app.workspace.getLeavesOfType(KANBAN_VIEW_TYPE);
     for (const leaf of leaves) {
-      (leaf.view as KanbanView).render();
+      const view = leaf.view as KanbanView;
+      // Kept in step with the one workspace both boards agree on, not just
+      // whichever one this leaf last had picked.
+      view.currentWorkspace = this.getCurrentWorkspace();
+      view.render();
     }
   }
 
@@ -375,8 +379,17 @@ export default class ProjectManagerPlugin extends Plugin {
   refreshProjectDashboard(): void {
     const leaves = this.app.workspace.getLeavesOfType(PROJECT_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
-      (leaf.view as ProjectDashboardView).render();
+      const view = leaf.view as ProjectDashboardView;
+      view.currentWorkspace = this.getCurrentWorkspace();
+      view.render();
     }
+  }
+
+  /** The one workspace both boards agree on — switching it in either refreshes both. */
+  async setCurrentWorkspace(ws: Workspace): Promise<void> {
+    this.settings.defaultWorkspaceId = ws.id;
+    await this.saveSettings();
+    this.refreshTimerViews();
   }
 
 }

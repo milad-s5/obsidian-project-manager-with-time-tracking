@@ -171,12 +171,13 @@ export class ProjectDashboardView extends ItemView {
     wsSelect.addEventListener("change", async () => {
       const ws = this.plugin.settings.workspaces.find((w) => w.id === wsSelect.value);
       if (!ws) return;
-      this.currentWorkspace = ws;
-      this.plugin.settings.defaultWorkspaceId = ws.id;
+      // Reset before setCurrentWorkspace triggers the render, so the new
+      // workspace opens on a clean day/scroll rather than the old one's.
       this.selectedDay = null;
       this.scrollTop = 0;
-      await this.plugin.saveSettings();
-      await this.render();
+      // Refreshes this board and the Kanban board's, so switching here is
+      // reflected there too.
+      await this.plugin.setCurrentWorkspace(ws);
     });
 
     const rangeSelect = context.createEl("select", { cls: "pm-filter-select" });

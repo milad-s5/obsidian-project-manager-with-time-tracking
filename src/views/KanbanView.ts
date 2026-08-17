@@ -337,12 +337,9 @@ export class KanbanView extends ItemView {
     });
     wsSelect.addEventListener("change", async () => {
       const ws = this.plugin.settings.workspaces.find((w) => w.id === wsSelect.value);
-      if (ws) {
-        this.currentWorkspace = ws;
-        this.plugin.settings.defaultWorkspaceId = ws.id;
-        await this.plugin.saveSettings();
-        await this.render();
-      }
+      // setCurrentWorkspace refreshes this board and the Project Dashboard's,
+      // so switching here is reflected there too.
+      if (ws) await this.plugin.setCurrentWorkspace(ws);
     });
 
     // Filter by project — a text field backed by a <datalist> of real project
