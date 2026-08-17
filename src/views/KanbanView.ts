@@ -316,8 +316,15 @@ export class KanbanView extends ItemView {
   renderToolbar(container: HTMLElement): void {
     const toolbar = container.createDiv({ cls: "pm-toolbar" });
 
+    // Three groups, each wrapping as a unit rather than shedding one button at
+    // a time onto its own line: which workspace, how the board is narrowed
+    // down, and what you can do to it.
+    const context = toolbar.createDiv({ cls: "pm-toolbar-group" });
+    const filters = toolbar.createDiv({ cls: "pm-toolbar-group" });
+    const actions = toolbar.createDiv({ cls: "pm-toolbar-group" });
+
     // Workspace selector
-    const wsSelect = toolbar.createEl("select", { cls: "pm-ws-select" });
+    const wsSelect = context.createEl("select", { cls: "pm-ws-select" });
     this.plugin.settings.workspaces.forEach((ws) => {
       const opt = wsSelect.createEl("option", { value: ws.id, text: ws.name });
       if (ws.id === this.currentWorkspace.id) opt.selected = true;
@@ -337,7 +344,7 @@ export class KanbanView extends ItemView {
     // or just type part of a name. Matching is by title (see render()), never
     // by the file slug, which is never shown anywhere for a user to type.
     const projListId = `pm-project-list-${this.instanceId}`;
-    const projInput = toolbar.createEl("input", {
+    const projInput = filters.createEl("input", {
       cls: "pm-filter-input",
       type: "text",
       placeholder: "Filter project...",
@@ -348,11 +355,11 @@ export class KanbanView extends ItemView {
       this.filterProject = projInput.value.trim();
       await this.render();
     });
-    const projList = toolbar.createEl("datalist", { attr: { id: projListId } });
+    const projList = filters.createEl("datalist", { attr: { id: projListId } });
     listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
 
     // Filter by task title
-    const taskInput = toolbar.createEl("input", {
+    const taskInput = filters.createEl("input", {
       cls: "pm-filter-input",
       type: "text",
       placeholder: "Filter task...",
@@ -365,7 +372,7 @@ export class KanbanView extends ItemView {
     });
 
     // Filter by priority
-    const prioSelect = toolbar.createEl("select", { cls: "pm-filter-select" });
+    const prioSelect = filters.createEl("select", { cls: "pm-filter-select" });
     prioSelect.createEl("option", { value: "", text: "All priorities" });
     this.plugin.settings.priorities.forEach((p) => {
       const opt = prioSelect.createEl("option", { value: p, text: p });
@@ -377,19 +384,19 @@ export class KanbanView extends ItemView {
     });
 
     // New task button
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => {
         this.plugin.openNewTaskModal(this.currentWorkspace);
       });
 
     // New project button
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
       .addEventListener("click", () => {
         this.plugin.openNewProjectModal(this.currentWorkspace);
       });
 
     // Project dashboard button
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Project Dashboard" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Project Dashboard" })
       .addEventListener("click", () => {
         this.plugin.openProjectDashboard();
       });
@@ -398,7 +405,7 @@ export class KanbanView extends ItemView {
     // metadata events, but a file changed outside Obsidian — a git discard, a
     // pull — is only noticed once Obsidian itself re-indexes it, and nothing a
     // plugin can do forces that. Reload re-reads the files and says so plainly.
-    const reload = toolbar.createEl("button", {
+    const reload = actions.createEl("button", {
       cls: "pm-btn pm-btn-secondary",
       text: "↻ Reload",
       attr: { "aria-label": "Re-read the task files and redraw the board" },

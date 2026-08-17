@@ -156,7 +156,14 @@ export class ProjectDashboardView extends ItemView {
   private renderToolbar(container: HTMLElement): void {
     const toolbar = container.createDiv({ cls: "pm-toolbar" });
 
-    const wsSelect = toolbar.createEl("select", { cls: "pm-ws-select" });
+    // Three groups, each wrapping as a unit rather than shedding one button at
+    // a time onto its own line: which workspace and period, how the list is
+    // narrowed down, and what you can do.
+    const context = toolbar.createDiv({ cls: "pm-toolbar-group" });
+    const filters = toolbar.createDiv({ cls: "pm-toolbar-group" });
+    const actions = toolbar.createDiv({ cls: "pm-toolbar-group" });
+
+    const wsSelect = context.createEl("select", { cls: "pm-ws-select" });
     this.plugin.settings.workspaces.forEach((ws) => {
       const opt = wsSelect.createEl("option", { value: ws.id, text: ws.name });
       if (ws.id === this.currentWorkspace.id) opt.selected = true;
@@ -172,7 +179,7 @@ export class ProjectDashboardView extends ItemView {
       await this.render();
     });
 
-    const rangeSelect = toolbar.createEl("select", { cls: "pm-filter-select" });
+    const rangeSelect = context.createEl("select", { cls: "pm-filter-select" });
     RANGES.forEach((r) => {
       const opt = rangeSelect.createEl("option", { value: r.id, text: r.label });
       if (r.id === this.range) opt.selected = true;
@@ -183,7 +190,7 @@ export class ProjectDashboardView extends ItemView {
     });
 
     // Period navigation — only where a period means anything
-    if (this.tab !== "projects") this.renderPeriodNav(toolbar);
+    if (this.tab !== "projects") this.renderPeriodNav(context);
 
     // Project name, status and priority filters only narrow the projects tab
     if (this.tab === "projects") {
@@ -191,7 +198,7 @@ export class ProjectDashboardView extends ItemView {
       // ways of narrowing it down work: pick one from the list, or just type
       // part of a name.
       const projListId = `pm-project-list-${this.instanceId}`;
-      const projInput = toolbar.createEl("input", {
+      const projInput = filters.createEl("input", {
         cls: "pm-filter-input",
         type: "text",
         placeholder: "Filter project...",
@@ -202,10 +209,10 @@ export class ProjectDashboardView extends ItemView {
         this.filterProjectQuery = projInput.value.trim();
         await this.render();
       });
-      const projList = toolbar.createEl("datalist", { attr: { id: projListId } });
+      const projList = filters.createEl("datalist", { attr: { id: projListId } });
       listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
 
-      const statusSelect = toolbar.createEl("select", { cls: "pm-filter-select" });
+      const statusSelect = filters.createEl("select", { cls: "pm-filter-select" });
       statusSelect.createEl("option", { value: "", text: "All statuses" });
       this.plugin.settings.statuses.forEach((status) => {
         const opt = statusSelect.createEl("option", { value: status, text: status });
@@ -216,7 +223,7 @@ export class ProjectDashboardView extends ItemView {
         await this.render();
       });
 
-      const prioSelect = toolbar.createEl("select", { cls: "pm-filter-select" });
+      const prioSelect = filters.createEl("select", { cls: "pm-filter-select" });
       prioSelect.createEl("option", { value: "", text: "All priorities" });
       this.plugin.settings.priorities.forEach((p) => {
         const opt = prioSelect.createEl("option", { value: p, text: p });
@@ -228,13 +235,13 @@ export class ProjectDashboardView extends ItemView {
       });
     }
 
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => this.plugin.openNewTaskModal(this.currentWorkspace));
 
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Project" })
       .addEventListener("click", () => this.plugin.openNewProjectModal(this.currentWorkspace));
 
-    toolbar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Kanban" })
+    actions.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Kanban" })
       .addEventListener("click", () => this.plugin.openKanban());
 
     renderTimerBar(toolbar, this.plugin, this.currentWorkspace, () => void this.render());

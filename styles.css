@@ -19,6 +19,21 @@
   flex-shrink: 0;
 }
 
+/* Which workspace/period, how the board is narrowed, what you can do — kept as
+   three units that wrap together, so a narrow window drops a whole group onto
+   its own line instead of shedding one button at a time. */
+.pm-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pm-toolbar-group:empty { display: none; }
+.pm-toolbar-group + .pm-toolbar-group:not(:empty) {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--background-modifier-border);
+}
+
 .pm-ws-select, .pm-filter-select, .pm-filter-input {
   padding: 5px 10px;
   border-radius: 7px;
