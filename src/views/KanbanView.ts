@@ -77,7 +77,13 @@ export class KanbanView extends ItemView {
 
     // Board
     const board = container.createDiv({ cls: "pm-kanban-board" });
-    const statuses = this.plugin.settings.statuses;
+    // Focus mode drops every column but "active" rather than filtering cards
+    // within each column — the columns themselves are the statuses, so hiding
+    // everything but the one that means "being worked on right now" is what
+    // "only active tasks" means on a board shaped like this.
+    const statuses = this.plugin.focusMode
+      ? this.plugin.settings.statuses.filter((s) => normalizeStatus(s) === "active")
+      : this.plugin.settings.statuses;
     const tasks = await this.plugin.taskManager.getTasks(this.currentWorkspace);
     this.noted = await this.plugin.noteScanner.scan(tasks);
     const taskQuery = this.filterTask.toLowerCase();
@@ -382,6 +388,15 @@ export class KanbanView extends ItemView {
       this.filterPriority = prioSelect.value;
       await this.render();
     });
+
+    // Focus mode — shared on the plugin, so toggling it here also redraws the
+    // Project Dashboard board the same way.
+    const focusBtn = actions.createEl("button", {
+      cls: `pm-btn pm-btn-secondary${this.plugin.focusMode ? " pm-btn-toggle-on" : ""}`,
+      text: "◎ Focus",
+      attr: { "aria-label": "Show only active items", "aria-pressed": String(this.plugin.focusMode) },
+    });
+    focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
 
     // New task button
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })

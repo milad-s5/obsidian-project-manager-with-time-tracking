@@ -61,6 +61,14 @@
 .pm-btn-secondary { color: var(--text-muted); }
 .pm-btn-danger { color: var(--color-red); border-color: color-mix(in srgb, var(--color-red) 45%, var(--background-modifier-border)); }
 .pm-btn-danger:hover { background: color-mix(in srgb, var(--color-red) 14%, transparent); color: var(--color-red); }
+/* A toggle that is "on" — kept off the blue pm-btn-primary palette on purpose,
+   so it never reads as just another create/action button */
+.pm-btn-toggle-on {
+  background: color-mix(in srgb, var(--pm-status-warning) 18%, transparent);
+  color: var(--pm-status-warning);
+  border-color: color-mix(in srgb, var(--pm-status-warning) 45%, var(--background-modifier-border));
+}
+.pm-btn-toggle-on:hover { background: color-mix(in srgb, var(--pm-status-warning) 28%, transparent); color: var(--pm-status-warning); }
 
 .pm-timer-bar {
   display: flex;

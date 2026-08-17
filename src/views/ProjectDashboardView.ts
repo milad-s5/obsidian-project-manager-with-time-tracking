@@ -235,6 +235,16 @@ export class ProjectDashboardView extends ItemView {
       });
     }
 
+    // Focus mode — shared on the plugin, so toggling it here also redraws the
+    // Kanban board the same way. Only visible effect is on the Projects tab,
+    // same as the period nav is only there for Overview/Calendar.
+    const focusBtn = actions.createEl("button", {
+      cls: `pm-btn pm-btn-secondary${this.plugin.focusMode ? " pm-btn-toggle-on" : ""}`,
+      text: "◎ Focus",
+      attr: { "aria-label": "Show only active items", "aria-pressed": String(this.plugin.focusMode) },
+    });
+    focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
+
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => this.plugin.openNewTaskModal(this.currentWorkspace));
 
@@ -964,7 +974,13 @@ export class ProjectDashboardView extends ItemView {
   private renderProjectsTab(root: HTMLElement, data: AnalyticsData): void {
     const board = root.createDiv({ cls: "pm-kanban-board" });
 
-    for (const status of this.allStatuses(data.projects.map((p) => p.status))) {
+    // Focus mode drops every column but "active" — same rule the Kanban board
+    // uses, so both boards mean the same thing by "only active items".
+    const statuses = this.plugin.focusMode
+      ? ["active"]
+      : this.allStatuses(data.projects.map((p) => p.status));
+
+    for (const status of statuses) {
       const col = board.createDiv({ cls: "pm-kanban-col" });
       col.setCssProps({ "--pm-status-color": statusColor(status) });
       col.createDiv({ cls: "pm-col-strip" });

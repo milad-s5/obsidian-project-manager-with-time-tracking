@@ -32,6 +32,9 @@ export default class ProjectManagerPlugin extends Plugin {
   calendar: Calendar;
   /** Raw timer from data.json — held until timeTracker has been constructed */
   private persistedTimer: unknown = null;
+  /** Shows only "active" status items — lives on the plugin, not a view, so
+   *  toggling it in either board is reflected in the other. */
+  focusMode = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -99,6 +102,12 @@ export default class ProjectManagerPlugin extends Plugin {
       id: "open-project-dashboard",
       name: "Open Project Dashboard",
       callback: () => this.openProjectDashboard(),
+    });
+
+    this.addCommand({
+      id: "toggle-focus-mode",
+      name: "Toggle Focus Mode (active items only)",
+      callback: () => this.toggleFocusMode(),
     });
 
     this.addCommand({
@@ -354,6 +363,13 @@ export default class ProjectManagerPlugin extends Plugin {
   refreshTimerViews(): void {
     this.refreshKanban();
     this.refreshProjectDashboard();
+  }
+
+  /** Reuses refreshTimerViews' "redraw both boards" behaviour so the toggle in
+   *  one is instantly reflected in the other, whichever is open. */
+  toggleFocusMode(): void {
+    this.focusMode = !this.focusMode;
+    this.refreshTimerViews();
   }
 
   refreshProjectDashboard(): void {
