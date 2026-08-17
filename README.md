@@ -26,6 +26,10 @@ Every period can be stepped backwards and forwards, so past months and years are
 
 ![The projects tab](./images/project-dashboard.png)
 
+**Filters and focus mode.** Narrow either board down by project — type part of a name or pick one from the list — by priority, or on the Kanban board by task title too. A Focus button on both boards drops everything but the *active* column; toggle it on either board and the other follows, since it is one shared switch rather than two.
+
+**Due dates.** A calendar-aware date picker for tasks and projects — it draws in Gregorian or Jalali, whichever the calendar setting is, so a due date reads the same everywhere on the dashboard.
+
 **Archive.** When a task or project reaches done, cancel or quite it moves into an archive folder together with its time entries. Closing a project takes its tasks with it. Reopening walks it back, except that a task which is done in its own right stays put. Archived items still appear in the board and every report — only the files move.
 
 **Workspaces.** Separate sets of folders — work and personal, say — each with its own projects, tasks, time entries and archive.
@@ -87,6 +91,7 @@ Anything you write beyond that template is yours, and the board marks cards that
 | Stop Timer | logs the tracked time |
 | Reset Timer | back to zero, still running, nothing logged |
 | Discard Timer | throws it away |
+| Toggle Focus Mode | active items only — shared between both boards |
 | Tidy archive | moves closed items, restores reopened ones |
 
 ## For other plugin authors
