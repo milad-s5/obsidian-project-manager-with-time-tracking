@@ -114,7 +114,25 @@ export class KanbanView extends ItemView {
       const closed = isMutedStatus(status);
       if (closed) {
         colFiltered.sort((a, b) => b.stat.mtime - a.stat.mtime);
+      } else if (normalizeStatus(status) === "todo" || normalizeStatus(status) === "active") {
+        const priorities = this.plugin.settings.priorities;
+        const rank = (f: TFile) => {
+          const p = String(this.app.metadataCache.getFileCache(f)?.frontmatter?.priority ?? "medium").toLowerCase();
+          const idx = priorities.indexOf(p);
+          return idx === -1 ? priorities.indexOf("medium") : idx;
+        };
+        colFiltered.sort((a, b) => rank(b) - rank(a));
       }
+
+      const runningPath = this.plugin.timeTracker.getActiveTaskPath();
+      if (runningPath) {
+        const idx = colFiltered.findIndex((f) => f.path === runningPath);
+        if (idx > 0) {
+          const [running] = colFiltered.splice(idx, 1);
+          colFiltered.unshift(running);
+        }
+      }
+
       const expanded = this.expandedCols.has(status);
       const hidden = closed && !expanded ? Math.max(0, colFiltered.length - COLLAPSED_LIMIT) : 0;
       const visible = hidden > 0 ? colFiltered.slice(0, COLLAPSED_LIMIT) : colFiltered;
