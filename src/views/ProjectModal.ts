@@ -167,9 +167,10 @@ export class ProjectModal extends Modal {
   /**
    * Deletes the project note, and only that note.
    *
-   * Its tasks stay, which the dialog says plainly: they would otherwise be
-   * orphaned with no warning, and destroying a whole tree of work behind a
-   * single button is not something to do quietly.
+   * Deletion is permanent rather than a move to the trash. Its tasks stay,
+   * which the dialog says plainly: they would otherwise be orphaned with no
+   * warning, and destroying a whole tree of work behind a single button is not
+   * something to do quietly.
    */
   private confirmDelete(file: TFile): void {
     const tasks = this.countTasks(file.basename);
@@ -178,10 +179,10 @@ export class ProjectModal extends Modal {
       : "";
     new ConfirmModal(this.app, {
       title: "Delete this project?",
-      body: `"${this.title}" will be moved to the trash.${tail}`,
+      body: `"${this.title}" will be deleted for good — this cannot be undone.${tail}`,
       confirmText: "Delete",
       onConfirm: async () => {
-        await this.app.fileManager.trashFile(file);
+        await this.app.vault.delete(file);
         new Notice(`Deleted: ${this.title}`);
         this.close();
         this.plugin.refreshTimerViews();

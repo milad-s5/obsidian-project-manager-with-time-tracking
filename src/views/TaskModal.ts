@@ -286,10 +286,10 @@ export class TaskModal extends Modal {
   /**
    * Deletes the task note.
    *
-   * It goes to the trash Obsidian is configured to use rather than being
-   * unlinked, so this is recoverable. Its time entries are left alone and the
-   * count is spelled out — they are the record of work that actually happened,
-   * and quietly destroying them alongside the task would be the wrong call.
+   * Deletion is permanent rather than a move to the trash, so the dialog says
+   * so outright. Its time entries are left alone and the count is spelled out —
+   * they record work that actually happened, and quietly destroying them
+   * alongside the task would be the wrong call.
    */
   private confirmDelete(file: TFile): void {
     const entries = this.countTimeEntries(file.basename);
@@ -298,13 +298,13 @@ export class TaskModal extends Modal {
       : "";
     new ConfirmModal(this.app, {
       title: "Delete this task?",
-      body: `"${this.title}" will be moved to the trash.${tail}`,
+      body: `"${this.title}" will be deleted for good — this cannot be undone.${tail}`,
       confirmText: "Delete",
       onConfirm: async () => {
         if (this.plugin.timeTracker.getActiveTaskPath() === file.path) {
           this.plugin.timeTracker.discard();
         }
-        await this.app.fileManager.trashFile(file);
+        await this.app.vault.delete(file);
         new Notice(`Deleted: ${this.title}`);
         this.close();
         this.plugin.refreshTimerViews();
