@@ -1,7 +1,7 @@
 {
   "id": "project-manager-with-time-tracking",
   "name": "Project Manager with Time Tracking",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "minAppVersion": "1.7.2",
   "description": "Plan projects and tasks as Markdown notes, track time against them, and review it on a dashboard. Gregorian or Jalali (Shamsi/Persian) calendar.",
   "author": "Milad Samimifar",
