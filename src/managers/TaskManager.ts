@@ -29,7 +29,7 @@ export class TaskManager {
     const frontmatter = `---
 type: task
 title: ${yamlString(title)}
-project: "[[${projectSlug}]]"
+project: ${projectSlug ? `"[[${projectSlug}]]"` : '""'}
 status: ${yamlString(status)}
 priority: ${yamlString(priority)}
 start: ""

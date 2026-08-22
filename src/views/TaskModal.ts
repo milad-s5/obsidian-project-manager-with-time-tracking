@@ -22,6 +22,11 @@ export class TaskModal extends Modal {
   /** The title as it was when the modal opened, so the H1 can be found */
   private originalTitle = "";
   projectSlug = "";
+  /** What is typed in the project box, resolved back to a slug on save */
+  private projectText = "";
+  private projectOptions: { slug: string; title: string }[] = [];
+  /** Keeps this modal's <datalist> id from colliding with another one */
+  private readonly instanceId = Math.random().toString(36).slice(2);
   status = "todo";
   priority = "medium";
   due = "";
@@ -59,9 +64,9 @@ export class TaskModal extends Modal {
    * children through an `any` cast, which ignored a workspace whose projects
    * folder had been configured elsewhere and leaned on an untyped internal.
    */
-  private getProjectSlugs(): string[] {
+  private getProjectOptions(): { slug: string; title: string }[] {
     const folder = normalizePath(this.ws.projectsFolder);
-    const out: string[] = [];
+    const out: { slug: string; title: string }[] = [];
 
     for (const file of this.app.vault.getMarkdownFiles()) {
       if (!file.path.startsWith(`${folder}/`)) continue;
@@ -69,15 +74,16 @@ export class TaskModal extends Modal {
       if (fm?.type !== "project") continue;
 
       const slug = file.basename;
+      const title = String(fm.title ?? slug);
       if (slug === this.projectSlug) {
-        out.push(slug);
+        out.push({ slug, title });
         continue;
       }
       if (TaskModal.ACTIVE_PROJECT_STATUSES.includes(normalizeStatus(fm.status))) {
-        out.push(slug);
+        out.push({ slug, title });
       }
     }
-    return out.sort();
+    return out.sort((a, b) => a.title.localeCompare(b.title));
   }
 
   onOpen(): void {
@@ -106,24 +112,27 @@ export class TaskModal extends Modal {
       if (this.isNew) t.inputEl.focus();
     });
 
-    const projects = this.getProjectSlugs();
-    new Setting(contentEl)
-        .setName("Project")
-        .addDropdown((d) => {
-            if (projects.length === 0) {
-                d.addOption("", "— no projects found —");
-            } else {
-                d.addOption("", "— select —");
-                projects.forEach((p) => d.addOption(p, p));
-                if (this.projectSlug && projects.includes(this.projectSlug)) {
-                    d.setValue(this.projectSlug);
-                } else if (projects.length > 0) {
-                    this.projectSlug = projects[0];
-                    d.setValue(projects[0]);
-                }
-            }
-            d.onChange((v) => (this.projectSlug = v));
-        });
+    // Type to narrow, or pick from the list — the same field the board uses to
+    // filter by project. A dropdown alone meant scrolling a long list, and it
+    // showed file slugs rather than the titles shown everywhere else.
+    this.projectOptions = this.getProjectOptions();
+    const projectSetting = new Setting(contentEl).setName("Project");
+    if (!this.projectOptions.length) {
+      projectSetting.setDesc("No open projects in this workspace yet.");
+    } else {
+      projectSetting.addText((t) => {
+        const listId = `pm-task-projects-${this.instanceId}`;
+        t.inputEl.setAttribute("list", listId);
+        t.setPlaceholder("Type or pick a project");
+        const current = this.projectOptions.find((p) => p.slug === this.projectSlug);
+        t.setValue(current ? current.title : "");
+        this.projectText = current ? current.title : "";
+        t.onChange((v) => (this.projectText = v));
+
+        const list = t.inputEl.parentElement?.createEl("datalist", { attr: { id: listId } });
+        this.projectOptions.forEach((p) => list?.createEl("option", { value: p.title }));
+      });
+    }
 
     new Setting(contentEl).setName("Status").addDropdown((d) => {
       this.plugin.settings.statuses.forEach((s) => d.addOption(s, s));
@@ -271,8 +280,33 @@ export class TaskModal extends Modal {
 
   private async submitAndClose(): Promise<void> {
     if (!this.title.trim()) { new Notice("Title is required"); return; }
+    if (!this.resolveProject()) return;
     await this.save();
     this.close();
+  }
+
+  /**
+   * Turns whatever is in the project box back into a slug.
+   *
+   * A typo has to stop the save rather than quietly file the task under no
+   * project, which is the kind of thing only noticed weeks later.
+   */
+  private resolveProject(): boolean {
+    const typed = this.projectText.trim();
+    if (!typed) {
+      this.projectSlug = "";
+      return true;
+    }
+    const match =
+      this.projectOptions.find((p) => p.title === typed) ??
+      this.projectOptions.find((p) => p.title.toLowerCase() === typed.toLowerCase()) ??
+      this.projectOptions.find((p) => p.slug.toLowerCase() === typed.toLowerCase());
+    if (!match) {
+      new Notice(`No open project called "${typed}"`);
+      return false;
+    }
+    this.projectSlug = match.slug;
+    return true;
   }
 
   async save(): Promise<void> {
@@ -289,7 +323,7 @@ export class TaskModal extends Modal {
     } else if (this.file) {
       await updateFrontmatterFields(this.app, this.file, {
         title: this.title,
-        project: `[[${this.projectSlug}]]`,
+        project: this.projectSlug ? `[[${this.projectSlug}]]` : "",
         status: this.status,
         priority: this.priority,
         due: this.due,
