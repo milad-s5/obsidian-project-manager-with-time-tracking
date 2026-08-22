@@ -6,6 +6,8 @@ import { todayString } from "../utils/DateUtils";
 import { resetTimerWithConfirm } from "./TimerBar";
 import { normalizeStatus } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
+import { ConfirmModal } from "./ConfirmModal";
+import { isUnderAnyFolder, timeEntryFolders } from "../utils/WorkspacePaths";
 
 export class TaskModal extends Modal {
   // Projects not yet started or in progress — only these can be picked for a task
@@ -272,10 +274,53 @@ export class TaskModal extends Modal {
           this.app.workspace.getLeaf(false).openFile(f);
           this.close();
         });
+
+      btnRow.createEl("button", { cls: "pm-btn pm-btn-danger", text: "Delete" })
+        .addEventListener("click", () => this.confirmDelete(f));
     }
 
     btnRow.createEl("button", { cls: "pm-btn", text: "Cancel" })
       .addEventListener("click", () => this.close());
+  }
+
+  /**
+   * Deletes the task note.
+   *
+   * It goes to the trash Obsidian is configured to use rather than being
+   * unlinked, so this is recoverable. Its time entries are left alone and the
+   * count is spelled out — they are the record of work that actually happened,
+   * and quietly destroying them alongside the task would be the wrong call.
+   */
+  private confirmDelete(file: TFile): void {
+    const entries = this.countTimeEntries(file.basename);
+    const tail = entries
+      ? ` Its ${entries} time ${entries === 1 ? "entry" : "entries"} will stay where they are.`
+      : "";
+    new ConfirmModal(this.app, {
+      title: "Delete this task?",
+      body: `"${this.title}" will be moved to the trash.${tail}`,
+      confirmText: "Delete",
+      onConfirm: async () => {
+        if (this.plugin.timeTracker.getActiveTaskPath() === file.path) {
+          this.plugin.timeTracker.discard();
+        }
+        await this.app.fileManager.trashFile(file);
+        new Notice(`Deleted: ${this.title}`);
+        this.close();
+        this.plugin.refreshTimerViews();
+      },
+    }).open();
+  }
+
+  private countTimeEntries(slug: string): number {
+    const folders = timeEntryFolders(this.ws);
+    let n = 0;
+    for (const f of this.app.vault.getMarkdownFiles()) {
+      if (!isUnderAnyFolder(f.path, folders)) continue;
+      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+      if (fm && linkSlug(fm.task) === slug) n++;
+    }
+    return n;
   }
 
   private async submitAndClose(): Promise<void> {

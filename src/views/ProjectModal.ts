@@ -5,6 +5,8 @@ import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/Front
 import { isMutedStatus, normalizeStatus, statusColor } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
 import { formatHours } from "./DashboardCharts";
+import { ConfirmModal } from "./ConfirmModal";
+import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
 
 export class ProjectModal extends Modal {
   plugin: ProjectManagerPlugin;
@@ -93,6 +95,9 @@ export class ProjectModal extends Modal {
           this.app.workspace.getLeaf(false).openFile(f);
           this.close();
         });
+
+      btnRow.createEl("button", { cls: "pm-btn pm-btn-danger", text: "Delete" })
+        .addEventListener("click", () => this.confirmDelete(f));
     }
 
     btnRow.createEl("button", { cls: "pm-btn", text: "Cancel" })
@@ -157,6 +162,42 @@ export class ProjectModal extends Modal {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
       });
     }
+  }
+
+  /**
+   * Deletes the project note, and only that note.
+   *
+   * Its tasks stay, which the dialog says plainly: they would otherwise be
+   * orphaned with no warning, and destroying a whole tree of work behind a
+   * single button is not something to do quietly.
+   */
+  private confirmDelete(file: TFile): void {
+    const tasks = this.countTasks(file.basename);
+    const tail = tasks
+      ? ` Its ${tasks} ${tasks === 1 ? "task stays" : "tasks stay"} in the workspace, with no project.`
+      : "";
+    new ConfirmModal(this.app, {
+      title: "Delete this project?",
+      body: `"${this.title}" will be moved to the trash.${tail}`,
+      confirmText: "Delete",
+      onConfirm: async () => {
+        await this.app.fileManager.trashFile(file);
+        new Notice(`Deleted: ${this.title}`);
+        this.close();
+        this.plugin.refreshTimerViews();
+      },
+    }).open();
+  }
+
+  private countTasks(slug: string): number {
+    const folders = taskFolders(this.ws);
+    let n = 0;
+    for (const f of this.app.vault.getMarkdownFiles()) {
+      if (!isUnderAnyFolder(f.path, folders)) continue;
+      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+      if (fm?.type === "task" && linkSlug(fm.project) === slug) n++;
+    }
+    return n;
   }
 
   private async submitAndClose(): Promise<void> {
