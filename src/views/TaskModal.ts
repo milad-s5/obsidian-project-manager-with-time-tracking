@@ -7,6 +7,8 @@ import { resetTimerWithConfirm } from "./TimerBar";
 import { normalizeStatus } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
 import { ConfirmModal } from "./ConfirmModal";
+import { ProjectSuggest } from "./ProjectSuggest";
+import { deleteNote, deleteWarning } from "../utils/FileOps";
 import { isUnderAnyFolder, timeEntryFolders } from "../utils/WorkspacePaths";
 
 export class TaskModal extends Modal {
@@ -27,8 +29,6 @@ export class TaskModal extends Modal {
   /** What is typed in the project box, resolved back to a slug on save */
   private projectText = "";
   private projectOptions: { slug: string; title: string }[] = [];
-  /** Keeps this modal's <datalist> id from colliding with another one */
-  private readonly instanceId = Math.random().toString(36).slice(2);
   status = "todo";
   priority = "medium";
   due = "";
@@ -123,16 +123,21 @@ export class TaskModal extends Modal {
       projectSetting.setDesc("No open projects in this workspace yet.");
     } else {
       projectSetting.addText((t) => {
-        const listId = `pm-task-projects-${this.instanceId}`;
-        t.inputEl.setAttribute("list", listId);
         t.setPlaceholder("Type or pick a project");
         const current = this.projectOptions.find((p) => p.slug === this.projectSlug);
         t.setValue(current ? current.title : "");
         this.projectText = current ? current.title : "";
         t.onChange((v) => (this.projectText = v));
 
-        const list = t.inputEl.parentElement?.createEl("datalist", { attr: { id: listId } });
-        this.projectOptions.forEach((p) => list?.createEl("option", { value: p.title }));
+        new ProjectSuggest(
+          this.app,
+          t.inputEl,
+          () => this.projectOptions,
+          (option) => {
+            this.projectText = option.title;
+            this.projectSlug = option.slug;
+          }
+        );
       });
     }
 
@@ -286,8 +291,8 @@ export class TaskModal extends Modal {
   /**
    * Deletes the task note.
    *
-   * Deletion is permanent rather than a move to the trash, so the dialog says
-   * so outright. Its time entries are left alone and the count is spelled out —
+   * Whether this is permanent or a trip to the trash is the vault owner's
+   * setting, and the dialog says which it will be. Its time entries are left alone and the count is spelled out —
    * they record work that actually happened, and quietly destroying them
    * alongside the task would be the wrong call.
    */
@@ -298,13 +303,13 @@ export class TaskModal extends Modal {
       : "";
     new ConfirmModal(this.app, {
       title: "Delete this task?",
-      body: `"${this.title}" will be deleted for good — this cannot be undone.${tail}`,
+      body: `"${this.title}" ${deleteWarning(this.plugin.settings.deleteBehaviour)}.${tail}`,
       confirmText: "Delete",
       onConfirm: async () => {
         if (this.plugin.timeTracker.getActiveTaskPath() === file.path) {
           this.plugin.timeTracker.discard();
         }
-        await this.app.vault.delete(file);
+        await deleteNote(this.app, file, this.plugin.settings.deleteBehaviour);
         new Notice(`Deleted: ${this.title}`);
         this.close();
         this.plugin.refreshTimerViews();

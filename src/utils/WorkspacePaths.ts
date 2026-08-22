@@ -60,7 +60,7 @@ export function defaultArchiveFolder(rootFolder: string): string {
 
 /**
  * Every project in a workspace as {slug, title} — synchronous, so it can back
- * a filter's <datalist> at toolbar-render time, before the async analytics
+ * a filter's suggestions at toolbar-render time, before the async analytics
  * collect has run. Includes archived projects, same as everywhere else that
  * lists projects.
  */

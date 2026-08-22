@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, Modal, ButtonComponent, Notice } from "obsidian";
 import ProjectManagerPlugin from "./main";
-import { Workspace, DEFAULT_SETTINGS } from "./types";
+import { DeleteBehaviour, Workspace, DEFAULT_SETTINGS } from "./types";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { CalendarKind, WeekStart } from "./utils/Calendar";
 
@@ -44,6 +44,22 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
           this.plugin.refreshTimerViews();
           this.display();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Deleting a task or project")
+      .setDesc(
+        "Trash follows this vault's own setting for deleted files, so they can be " +
+          "recovered. Delete permanently removes the note outright."
+      )
+      .addDropdown((drop) => {
+        drop.addOption("trash", "Move to trash");
+        drop.addOption("permanent", "Delete permanently");
+        drop.setValue(this.plugin.settings.deleteBehaviour);
+        drop.onChange(async (value) => {
+          this.plugin.settings.deleteBehaviour = value as DeleteBehaviour;
+          await this.plugin.saveSettings();
         });
       });
 

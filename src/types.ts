@@ -25,7 +25,16 @@ export interface ProjectManagerSettings {
   calendar: CalendarKind;
   /** Which day a week starts on; "auto" follows the calendar's own custom */
   weekStart: WeekStart;
+  /** What Delete does to a note */
+  deleteBehaviour: DeleteBehaviour;
 }
+
+/**
+ * "trash" hands the file to whatever Obsidian is set to do with deleted files,
+ * which is recoverable; "permanent" removes it outright. Defaulting to trash
+ * keeps the vault owner's own preference in charge unless they say otherwise.
+ */
+export type DeleteBehaviour = "trash" | "permanent";
 
 export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   workspaces: [
@@ -45,6 +54,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   priorities: ["low", "medium", "high", "critical"],
   calendar: "gregorian",
   weekStart: "auto",
+  deleteBehaviour: "trash",
 };
 
 export interface ProjectFrontmatter {

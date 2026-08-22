@@ -6,6 +6,7 @@ import { isMutedStatus, normalizeStatus, statusColor } from "../utils/StatusColo
 import { mountDatePicker } from "./DatePicker";
 import { formatHours } from "./DashboardCharts";
 import { ConfirmModal } from "./ConfirmModal";
+import { deleteNote, deleteWarning } from "../utils/FileOps";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
 
 export class ProjectModal extends Modal {
@@ -167,7 +168,7 @@ export class ProjectModal extends Modal {
   /**
    * Deletes the project note, and only that note.
    *
-   * Deletion is permanent rather than a move to the trash. Its tasks stay,
+   * Permanent or trashed is the vault owner's setting. Its tasks stay,
    * which the dialog says plainly: they would otherwise be orphaned with no
    * warning, and destroying a whole tree of work behind a single button is not
    * something to do quietly.
@@ -179,10 +180,10 @@ export class ProjectModal extends Modal {
       : "";
     new ConfirmModal(this.app, {
       title: "Delete this project?",
-      body: `"${this.title}" will be deleted for good — this cannot be undone.${tail}`,
+      body: `"${this.title}" ${deleteWarning(this.plugin.settings.deleteBehaviour)}.${tail}`,
       confirmText: "Delete",
       onConfirm: async () => {
-        await this.app.vault.delete(file);
+        await deleteNote(this.app, file, this.plugin.settings.deleteBehaviour);
         new Notice(`Deleted: ${this.title}`);
         this.close();
         this.plugin.refreshTimerViews();

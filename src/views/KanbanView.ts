@@ -7,6 +7,7 @@ import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { isArchivedPath, listProjectOptions } from "../utils/WorkspacePaths";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, tickTimerDisplays } from "./TimerBar";
+import { ProjectSuggest } from "./ProjectSuggest";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
 
@@ -19,9 +20,6 @@ export class KanbanView extends ItemView {
   filterProject: string = "";
   filterPriority: string = "";
   filterTask: string = "";
-  /** Unique per leaf, so this view's <datalist> id cannot collide with another
-   *  Kanban leaf open at the same time */
-  private readonly instanceId = Math.random().toString(36).slice(2);
   /** Paths of tasks holding text beyond the template → marker on the card */
   private noted: Map<string, NoteInfo> = new Map();
   /** Closed columns the user expanded — has to survive the next render */
@@ -89,7 +87,7 @@ export class KanbanView extends ItemView {
     const taskQuery = this.filterTask.toLowerCase();
     const projectQuery = this.filterProject.toLowerCase();
     // Matched by title, since that is what the field shows and what the
-    // datalist suggests — the slug behind it is never shown to the user.
+    // suggester offers — the slug behind it is never shown to the user.
     const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
 
     for (const status of statuses) {
@@ -360,24 +358,29 @@ export class KanbanView extends ItemView {
       if (ws) await this.plugin.setCurrentWorkspace(ws);
     });
 
-    // Filter by project — a text field backed by a <datalist> of real project
-    // titles, so both ways of narrowing it down work: pick one from the list,
-    // or just type part of a name. Matching is by title (see render()), never
-    // by the file slug, which is never shown anywhere for a user to type.
-    const projListId = `pm-project-list-${this.instanceId}`;
+    // Filter by project — type part of a name or pick from the suggestions.
+    // Matching is by title (see render()), never by the file slug, which is
+    // never shown anywhere for a user to type.
     const projInput = filters.createEl("input", {
       cls: "pm-filter-input",
       type: "text",
       placeholder: "Filter project...",
-      attr: { "data-filter": "project", list: projListId },
+      attr: { "data-filter": "project" },
     });
     projInput.value = this.filterProject;
     projInput.addEventListener("input", async () => {
       this.filterProject = projInput.value.trim();
       await this.render();
     });
-    const projList = filters.createEl("datalist", { attr: { id: projListId } });
-    listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
+    new ProjectSuggest(
+      this.app,
+      projInput,
+      () => listProjectOptions(this.app, this.currentWorkspace),
+      (option) => {
+        this.filterProject = option.title;
+        void this.render();
+      }
+    );
 
     // Filter by task title
     const taskInput = filters.createEl("input", {

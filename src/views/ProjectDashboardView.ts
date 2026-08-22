@@ -5,6 +5,7 @@ import { Workspace } from "../types";
 import { statusColor, priorityColor, isMutedStatus } from "../utils/StatusColors";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { renderTimerBar, tickTimerDisplays } from "./TimerBar";
+import { ProjectSuggest } from "./ProjectSuggest";
 import {
   AnalyticsData, TimeRecord, TaskInfo, ProjectInfo,
   currentStreak, groupHoursBy, hoursPerDay, isClosedStatus, isDoneStatus,
@@ -55,9 +56,6 @@ export class ProjectDashboardView extends ItemView {
   filterStatus = "";
   filterPriority = "";
   filterProjectQuery = "";
-  /** Unique per leaf, so this view's <datalist> id cannot collide with another
-   *  dashboard leaf open at the same time */
-  private readonly instanceId = Math.random().toString(36).slice(2);
 
   private tab: TabId = "projects";
   private range: RangeId = "month";
@@ -195,23 +193,29 @@ export class ProjectDashboardView extends ItemView {
 
     // Project name, status and priority filters only narrow the projects tab
     if (this.tab === "projects") {
-      // A text field backed by a <datalist> of real project titles, so both
-      // ways of narrowing it down work: pick one from the list, or just type
-      // part of a name.
-      const projListId = `pm-project-list-${this.instanceId}`;
+      // Type part of a name, or pick from the suggestions. Obsidian's suggester
+      // rather than a native <datalist>, which the browser draws itself and so
+      // came up white regardless of the theme.
       const projInput = filters.createEl("input", {
         cls: "pm-filter-input",
         type: "text",
         placeholder: "Filter project...",
-        attr: { "data-filter": "project", list: projListId },
+        attr: { "data-filter": "project" },
       });
       projInput.value = this.filterProjectQuery;
       projInput.addEventListener("input", async () => {
         this.filterProjectQuery = projInput.value.trim();
         await this.render();
       });
-      const projList = filters.createEl("datalist", { attr: { id: projListId } });
-      listProjectOptions(this.app, this.currentWorkspace).forEach((p) => projList.createEl("option", { value: p.title }));
+      new ProjectSuggest(
+        this.app,
+        projInput,
+        () => listProjectOptions(this.app, this.currentWorkspace),
+        (option) => {
+          this.filterProjectQuery = option.title;
+          void this.render();
+        }
+      );
 
       const statusSelect = filters.createEl("select", { cls: "pm-filter-select" });
       statusSelect.createEl("option", { value: "", text: "All statuses" });
