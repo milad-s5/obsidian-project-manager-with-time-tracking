@@ -164,6 +164,7 @@ export class AnalyticsManager {
 
       const slug = file.basename;
       const mine = tasks.filter((t) => t.projectSlug === slug);
+      const counted = mine.filter((t) => isDoneStatus(t.status) || !isClosedStatus(t.status));
       out.push({
         file,
         slug,
@@ -173,8 +174,11 @@ export class AnalyticsManager {
         priority: String(fm.priority ?? "medium"),
         due: String(fm.due ?? ""),
         created: String(fm.created ?? ""),
-        taskCount: mine.length,
-        doneCount: mine.filter((t) => isDoneStatus(t.status)).length,
+        // Cancelled and abandoned tasks drop out of both halves of the ratio.
+        // Counting them in the denominator made a finished project read as
+        // "1/2" forever, since the second task was never going to be done.
+        taskCount: counted.length,
+        doneCount: counted.filter((t) => isDoneStatus(t.status)).length,
         hours: Math.round(mine.reduce((s, t) => s + t.totalHours, 0) * 100) / 100,
       });
     }
