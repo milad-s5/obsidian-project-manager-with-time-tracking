@@ -6,6 +6,8 @@ Plan projects and tasks as ordinary Markdown notes, track time against them, and
 
 Everything lives in your vault as plain notes with frontmatter. There is no database and no lock-in: delete the plugin and your projects and tasks are still readable files.
 
+![Dragging a card to change its status, timing the task, and the dashboard that adds it up](./images/demo.gif)
+
 ![The dashboard's overview tab](./images/overview.png)
 
 ## What it does
