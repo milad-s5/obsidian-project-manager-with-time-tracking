@@ -2,7 +2,8 @@ import { ItemView, WorkspaceLeaf, TFile, Menu, Notice } from "obsidian";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
-import { statusColor, priorityColor, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
+import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
+import { renderBoardColumn } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { isArchivedPath, listProjectOptions } from "../utils/WorkspacePaths";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
@@ -91,8 +92,6 @@ export class KanbanView extends ItemView {
     const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
 
     for (const status of statuses) {
-      const col = board.createDiv({ cls: "pm-kanban-col" });
-      col.setCssProps({ "--pm-status-color": statusColor(status) });
       const colFiltered = tasks.filter((f) => {
         const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
         if (!fm) return false;
@@ -112,7 +111,7 @@ export class KanbanView extends ItemView {
       const closed = isMutedStatus(status);
       if (closed) {
         colFiltered.sort((a, b) => b.stat.mtime - a.stat.mtime);
-      } else if (normalizeStatus(status) === "todo" || normalizeStatus(status) === "active") {
+      } else if (["backlog", "todo", "active"].includes(normalizeStatus(status))) {
         const priorities = this.plugin.settings.priorities;
         const rank = (f: TFile) => {
           const p = String(this.app.metadataCache.getFileCache(f)?.frontmatter?.priority ?? "medium").toLowerCase();
@@ -135,13 +134,20 @@ export class KanbanView extends ItemView {
       const hidden = closed && !expanded ? Math.max(0, colFiltered.length - COLLAPSED_LIMIT) : 0;
       const visible = hidden > 0 ? colFiltered.slice(0, COLLAPSED_LIMIT) : colFiltered;
 
-      col.createDiv({ cls: "pm-col-strip" });
-      const header = col.createDiv({ cls: "pm-col-header" });
-      header.createSpan({ cls: "pm-col-title", text: status });
-      header.createSpan({ cls: "pm-col-count", text: String(colFiltered.length) });
-
-      const cards = col.createDiv({ cls: "pm-col-cards" });
-      cards.setAttribute("data-status", status);
+      const { col, cards } = renderBoardColumn(board, {
+        status,
+        count: colFiltered.length,
+        collapsed: this.plugin.isColumnCollapsed("tasks", status),
+        onToggle: (collapsed) => void this.plugin.setColumnCollapsed("tasks", status, collapsed),
+        onDrop: async (taskPath) => {
+          const file = this.app.vault.getAbstractFileByPath(taskPath) as TFile | null;
+          if (!file) return;
+          await updateFrontmatterFields(this.app, file, { status });
+          await this.plugin.syncArchiveFor(this.currentWorkspace, file);
+          await this.render();
+        },
+      });
+      if (isBacklogStatus(status)) this.renderQuickAdd(col, cards, status);
 
       if (colFiltered.length === 0) {
         cards.createDiv({ cls: "pm-col-empty", text: "No tasks here" });
@@ -162,24 +168,48 @@ export class KanbanView extends ItemView {
           await this.render();
         });
       }
-
-      // Drop zone
-      cards.addEventListener("dragover", (e) => { e.preventDefault(); cards.addClass("pm-drag-over"); });
-      cards.addEventListener("dragleave", () => cards.removeClass("pm-drag-over"));
-      cards.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        cards.removeClass("pm-drag-over");
-        const taskPath = e.dataTransfer?.getData("text/plain");
-        if (!taskPath) return;
-        const file = this.app.vault.getAbstractFileByPath(taskPath) as TFile | null;
-        if (!file) return;
-        await updateFrontmatterFields(this.app, file, { status });
-        await this.plugin.syncArchiveFor(this.currentWorkspace, file);
-        await this.render();
-      });
     }
 
     restoreFocus(container, focus);
+  }
+
+  /**
+   * One line, Enter, next — a backlog is only worth keeping if dropping
+   * something into it costs nothing. The task takes the board's filters, so it
+   * does not vanish the moment it is added: the project when the filter names
+   * exactly one, and the priority when one is picked.
+   */
+  private renderQuickAdd(col: HTMLElement, cards: HTMLElement, status: string): void {
+    const input = createEl("input", {
+      cls: "pm-col-quickadd",
+      type: "text",
+      placeholder: "Add to backlog…",
+      // The key captureFocus looks for, so the field stays focused across the
+      // re-render each new task triggers
+      attr: { "data-filter": "quick-add" },
+    });
+    col.insertBefore(input, cards);
+
+    input.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter" || e.isComposing) return;
+      e.preventDefault();
+      const title = input.value.trim();
+      if (!title) return;
+      input.value = "";
+      const query = this.filterProject.toLowerCase();
+      const project = query
+        ? listProjectOptions(this.app, this.currentWorkspace).find((p) => p.title.toLowerCase() === query)
+        : undefined;
+      await this.plugin.taskManager.createTask(
+        this.currentWorkspace,
+        title,
+        project?.slug ?? "",
+        status,
+        this.filterPriority || "medium",
+        ""
+      );
+      new Notice(project ? `Added to backlog · ${project.title}` : "Added to backlog");
+    });
   }
 
   /**
@@ -262,7 +292,8 @@ export class KanbanView extends ItemView {
       meta.createSpan({ text: `📁 ${linkSlug(fm.project)}` });
     }
     if (fm.due) {
-      const isOverdue = fm.due < new Date().toISOString().slice(0, 10) && status !== "done";
+      const isOverdue = fm.due < new Date().toISOString().slice(0, 10)
+        && !isMutedStatus(status) && !isBacklogStatus(status);
       if (fm.project) meta.createSpan({ cls: "pm-meta-dot" });
       meta.createSpan({ cls: isOverdue ? "pm-overdue" : "", text: `📅 ${this.plugin.calendar.label(fm.due)}` });
     }

@@ -8,7 +8,7 @@
 import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
 import { toISODate, todayISO, addDays, daysBetween } from "../utils/Jalali";
-import { normalizeStatus } from "../utils/StatusColors";
+import { isBacklogStatus, normalizeStatus } from "../utils/StatusColors";
 import { linkSlug } from "../utils/FrontmatterUtils";
 import {
   isArchivedPath, isUnderAnyFolder, projectFolders, taskFolders, timeEntryFolders,
@@ -51,6 +51,8 @@ export interface ProjectInfo {
   created: string;
   taskCount: number;
   doneCount: number;
+  /** Not part of taskCount — see collectProjects */
+  backlogCount: number;
   hours: number;
 }
 
@@ -71,6 +73,10 @@ const CLOSED_STATUSES = new Set(["done", "cancel", "quite"]);
 
 export function isDoneStatus(status: string): boolean { return DONE_STATUSES.has(status); }
 export function isClosedStatus(status: string): boolean { return CLOSED_STATUSES.has(status); }
+/** Taken on and not finished — neither closed nor still sitting in the backlog */
+export function isOpenStatus(status: string): boolean {
+  return !isClosedStatus(status) && !isBacklogStatus(status);
+}
 
 function unlink(value: unknown): string {
   return linkSlug(value);
@@ -164,7 +170,7 @@ export class AnalyticsManager {
 
       const slug = file.basename;
       const mine = tasks.filter((t) => t.projectSlug === slug);
-      const counted = mine.filter((t) => isDoneStatus(t.status) || !isClosedStatus(t.status));
+      const counted = mine.filter((t) => isDoneStatus(t.status) || isOpenStatus(t.status));
       out.push({
         file,
         slug,
@@ -177,8 +183,11 @@ export class AnalyticsManager {
         // Cancelled and abandoned tasks drop out of both halves of the ratio.
         // Counting them in the denominator made a finished project read as
         // "1/2" forever, since the second task was never going to be done.
+        // Backlog is left out the same way — it has not been taken on, so it
+        // should not drag the progress down — and is counted beside it instead.
         taskCount: counted.length,
         doneCount: counted.filter((t) => isDoneStatus(t.status)).length,
+        backlogCount: mine.filter((t) => isBacklogStatus(t.status)).length,
         hours: Math.round(mine.reduce((s, t) => s + t.totalHours, 0) * 100) / 100,
       });
     }

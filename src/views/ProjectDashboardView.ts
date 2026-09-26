@@ -2,13 +2,14 @@ import { ItemView, WorkspaceLeaf, TFile, Menu, Notice } from "obsidian";
 import { updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
-import { statusColor, priorityColor, isMutedStatus } from "../utils/StatusColors";
+import { statusColor, priorityColor, isBacklogStatus, isMutedStatus } from "../utils/StatusColors";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { renderTimerBar, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
+import { renderBoardColumn } from "./BoardColumn";
 import {
   AnalyticsData, TimeRecord, TaskInfo, ProjectInfo,
-  currentStreak, groupHoursBy, hoursPerDay, isClosedStatus, isDoneStatus,
+  currentStreak, groupHoursBy, hoursPerDay, isDoneStatus, isOpenStatus,
   longestStreak, recordsInRange, sumHours,
 } from "../managers/AnalyticsManager";
 import {
@@ -408,7 +409,8 @@ export class ProjectDashboardView extends ItemView {
     const total = sumHours(inRange);
     const prevTotal = sumHours(prev);
     const activeDays = days.filter((d) => (perDay.get(d) ?? 0) > 0).length;
-    const openTasks = data.tasks.filter((t) => !isClosedStatus(t.status));
+    const openTasks = data.tasks.filter((t) => isOpenStatus(t.status));
+    const backlogCount = data.tasks.filter((t) => isBacklogStatus(t.status)).length;
     const today = todayISO();
     const overdue = openTasks.filter((t) => t.due && t.due < today);
 
@@ -451,7 +453,8 @@ export class ProjectDashboardView extends ItemView {
     statTile(tiles, {
       label: "Open tasks",
       value: String(openTasks.length),
-      sub: `${data.tasks.filter((t) => isDoneStatus(t.status)).length} done of ${data.tasks.length}`,
+      sub: `${data.tasks.filter((t) => isDoneStatus(t.status)).length} done of ${data.tasks.length}`
+        + (backlogCount ? ` · ${backlogCount} in backlog` : ""),
     });
     statTile(tiles, {
       label: "Overdue",
@@ -986,12 +989,6 @@ export class ProjectDashboardView extends ItemView {
       : this.allStatuses(data.projects.map((p) => p.status));
 
     for (const status of statuses) {
-      const col = board.createDiv({ cls: "pm-kanban-col" });
-      col.setCssProps({ "--pm-status-color": statusColor(status) });
-      col.createDiv({ cls: "pm-col-strip" });
-      const header = col.createDiv({ cls: "pm-col-header" });
-      header.createSpan({ cls: "pm-col-title", text: status });
-
       const nameQuery = this.filterProjectQuery.toLowerCase();
       const colProjects = data.projects.filter((p) => {
         if (this.filterPriority && p.priority !== this.filterPriority) return false;
@@ -1000,33 +997,28 @@ export class ProjectDashboardView extends ItemView {
         return p.status === status;
       });
 
-      header.createSpan({ cls: "pm-col-count", text: String(colProjects.length) });
-
-      const cards = col.createDiv({ cls: "pm-col-cards" });
-      cards.setAttribute("data-status", status);
+      const { cards } = renderBoardColumn(board, {
+        status,
+        count: colProjects.length,
+        collapsed: this.plugin.isColumnCollapsed("projects", status),
+        onToggle: (collapsed) => void this.plugin.setColumnCollapsed("projects", status, collapsed),
+        onDrop: async (projPath) => {
+          const file = this.app.vault.getAbstractFileByPath(projPath) as TFile | null;
+          if (!file) return;
+          await updateFrontmatterFields(this.app, file, { status });
+          await this.plugin.syncArchiveFor(this.currentWorkspace, file);
+          this.plugin.refreshProjectDashboard();
+          this.plugin.refreshKanban();
+        },
+      });
 
       if (!colProjects.length) cards.createDiv({ cls: "pm-col-empty", text: "No projects here" });
       for (const project of colProjects) this.renderProjectCard(cards, project);
-
-      cards.addEventListener("dragover", (e) => { e.preventDefault(); cards.addClass("pm-drag-over"); });
-      cards.addEventListener("dragleave", () => cards.removeClass("pm-drag-over"));
-      cards.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        cards.removeClass("pm-drag-over");
-        const projPath = e.dataTransfer?.getData("text/plain");
-        if (!projPath) return;
-        const file = this.app.vault.getAbstractFileByPath(projPath) as TFile | null;
-        if (!file) return;
-        await updateFrontmatterFields(this.app, file, { status });
-        await this.plugin.syncArchiveFor(this.currentWorkspace, file);
-        this.plugin.refreshProjectDashboard();
-        this.plugin.refreshKanban();
-      });
     }
   }
 
   private renderProjectCard(container: HTMLElement, project: ProjectInfo): void {
-    const overdue = !!project.due && project.due < todayISO() && !isClosedStatus(project.status);
+    const overdue = !!project.due && project.due < todayISO() && isOpenStatus(project.status);
 
     const card = container.createDiv({ cls: "pm-task-card" });
     card.setAttribute("draggable", "true");
@@ -1064,6 +1056,13 @@ export class ProjectDashboardView extends ItemView {
       meta.createSpan({ cls: "pm-meta-dot" });
     }
     meta.createSpan({ text: `☑ ${project.doneCount}/${project.taskCount}` });
+    if (project.backlogCount) {
+      meta.createSpan({
+        cls: "pm-card-backlog",
+        text: `📥 ${project.backlogCount}`,
+        attr: { "aria-label": `${project.backlogCount} more in the backlog` },
+      });
+    }
     meta.createSpan({ cls: "pm-card-hours", text: `⏱ ${formatHours(project.hours)}` });
 
     card.addEventListener("click", () => this.plugin.openProjectModal(project.file, this.currentWorkspace));

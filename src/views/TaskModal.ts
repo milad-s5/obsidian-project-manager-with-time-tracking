@@ -12,8 +12,8 @@ import { deleteNote, deleteWarning } from "../utils/FileOps";
 import { isUnderAnyFolder, timeEntryFolders } from "../utils/WorkspacePaths";
 
 export class TaskModal extends Modal {
-  // Projects not yet started or in progress — only these can be picked for a task
-  private static readonly ACTIVE_PROJECT_STATUSES = ["todo", "active"];
+  // Projects not yet closed — only these can be picked for a task
+  private static readonly ACTIVE_PROJECT_STATUSES = ["backlog", "todo", "active"];
 
   plugin: ProjectManagerPlugin;
   file: TFile | null;

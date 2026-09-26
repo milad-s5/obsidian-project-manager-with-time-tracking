@@ -16,6 +16,8 @@ import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { NoteScanner } from "./utils/NoteContent";
 import { resetTimerWithConfirm } from "./views/TimerBar";
+import { BoardKind } from "./views/BoardColumn";
+import { BACKLOG_STATUS, isBacklogStatus } from "./utils/StatusColors";
 
 export default class ProjectManagerPlugin extends Plugin {
   settings: ProjectManagerSettings;
@@ -52,6 +54,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.restoreTimer();
     await this.migrateStatusNames();
+    await this.addBacklogStatus();
 
     // Ensure all workspace folders exist
     for (const ws of this.settings.workspaces) {
@@ -213,6 +216,40 @@ export default class ProjectManagerPlugin extends Plugin {
     for (const ws of this.settings.workspaces) {
       if (!ws.archiveFolder) ws.archiveFolder = defaultArchiveFolder(ws.rootFolder);
     }
+
+    // Object.assign is shallow — without a copy, folding a column would write
+    // into DEFAULT_SETTINGS itself
+    this.settings.collapsedColumns = { ...(this.settings.collapsedColumns ?? {}) };
+
+    // The default fills this in as true, so whether it was really there has
+    // to be read from what was stored
+    if (isUpgrade && settings.backlogAdded === undefined) {
+      this.settings.backlogAdded = false;
+    }
+  }
+
+  /**
+   * Gives a vault that predates the backlog its column, once. Stored statuses
+   * replace the default list wholesale, so without this an update would ship
+   * the feature to nobody who already had the plugin.
+   */
+  private async addBacklogStatus(): Promise<void> {
+    if (this.settings.backlogAdded) return;
+    if (!this.settings.statuses.some((s) => isBacklogStatus(s))) {
+      this.settings.statuses = [BACKLOG_STATUS, ...this.settings.statuses];
+    }
+    this.settings.backlogAdded = true;
+    await this.savePluginData();
+  }
+
+  /** Backlog starts folded — it is the column you look into, not at */
+  isColumnCollapsed(board: BoardKind, status: string): boolean {
+    return this.settings.collapsedColumns[`${board}:${status}`] ?? isBacklogStatus(status);
+  }
+
+  async setColumnCollapsed(board: BoardKind, status: string, collapsed: boolean): Promise<void> {
+    this.settings.collapsedColumns[`${board}:${status}`] = collapsed;
+    await this.savePluginData();
   }
 
   /** The only writer of data.json — settings and timer always go out together */

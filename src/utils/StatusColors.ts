@@ -48,7 +48,21 @@ export function statusSlot(status: string): number {
 }
 
 export function statusColor(status: string): string {
+  // Backlog is deliberately grey: it is not work in flight, and a palette slot
+  // would make it compete with todo and active for attention.
+  if (isBacklogStatus(status)) return "var(--pm-status-backlog)";
   return `var(--pm-cat-${statusSlot(status)})`;
+}
+
+/**
+ * Work that may happen one day but is not committed to. It is open — not
+ * closed, not archived — yet stays out of "open tasks", overdue and project
+ * progress, which are about what has actually been taken on.
+ */
+export const BACKLOG_STATUS = "backlog";
+
+export function isBacklogStatus(status: unknown): boolean {
+  return normalizeStatus(status) === BACKLOG_STATUS;
 }
 
 export function priorityColor(priority: string): string {

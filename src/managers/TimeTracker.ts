@@ -2,6 +2,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import { ActiveTimer, Workspace } from "../types";
 import { toISOFileStamp, todayString } from "../utils/DateUtils";
 import { TaskManager } from "./TaskManager";
+import { isBacklogStatus } from "../utils/StatusColors";
 
 export class TimeTracker {
   private activeTimer: ActiveTimer | null = null;
@@ -30,6 +31,17 @@ export class TimeTracker {
       accumulatedMs: 0,
     };
     this.persist();
+    void this.promoteFromBacklog(taskPath);
+  }
+
+  /** Working on a task is taking it on — it cannot stay in the backlog */
+  private async promoteFromBacklog(taskPath: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(taskPath);
+    if (!(file instanceof TFile)) return;
+    if (!isBacklogStatus(this.app.metadataCache.getFileCache(file)?.frontmatter?.status)) return;
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      fm.status = "active";
+    });
   }
 
   /** Closes the current segment and banks it. A no-op on a paused timer. */

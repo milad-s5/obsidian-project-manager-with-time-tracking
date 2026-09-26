@@ -16,6 +16,10 @@ Everything lives in your vault as plain notes with frontmatter. There is no data
 
 ![The kanban board with a timer running](./images/time-tracking.png)
 
+**Backlog.** Work you may do one day but have not taken on yet. It gets its own column, folded by default, with a one-line field for adding to it: type, Enter, next. Backlog tasks stay out of open tasks, overdue and project progress, and starting a timer on one moves it to *active*.
+
+**Foldable columns.** Every column on either board has an arrow that folds it into a narrow bar, and the board remembers which ones you folded. A folded bar still takes a dropped card.
+
 **Dashboard.** Three tabs:
 
 - *Overview* — hours for the period, active days, current streak, open and overdue tasks, hours per day, time by project, most-worked tasks, task status breakdown.

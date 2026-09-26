@@ -27,6 +27,18 @@ export interface ProjectManagerSettings {
   weekStart: WeekStart;
   /** What Delete does to a note */
   deleteBehaviour: DeleteBehaviour;
+  /**
+   * Board columns the user folded or unfolded, keyed "<board>:<status>".
+   * Only explicit choices are stored; a column with no entry takes its default
+   * (backlog folded, everything else open).
+   */
+  collapsedColumns: Record<string, boolean>;
+  /**
+   * Set once "backlog" has been offered to this vault. An existing vault gets
+   * it added to its statuses on the first load after the update; the flag is
+   * what keeps it from coming back after the user deletes it.
+   */
+  backlogAdded: boolean;
 }
 
 /**
@@ -50,11 +62,13 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   ],
   defaultWorkspaceId: "default",
   dateFormat: "YYYY-MM-DD",
-  statuses: ["todo", "active", "done", "cancel", "quite"],
+  statuses: ["backlog", "todo", "active", "done", "cancel", "quite"],
   priorities: ["low", "medium", "high", "critical"],
   calendar: "gregorian",
   weekStart: "auto",
   deleteBehaviour: "trash",
+  collapsedColumns: {},
+  backlogAdded: true,
 };
 
 export interface ProjectFrontmatter {
