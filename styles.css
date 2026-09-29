@@ -447,7 +447,7 @@
   font-size: 11px;
   color: var(--text-muted);
 }
-.pm-meta-dot::before { content: "\\00b7"; margin: 0 5px; color: var(--text-faint); }
+.pm-meta-dot::before { content: "\00b7"; margin: 0 5px; color: var(--text-faint); }
 .pm-overdue { color: var(--color-red); font-weight: 700; }
 .pm-card-hours {
   font-variant-numeric: tabular-nums;
