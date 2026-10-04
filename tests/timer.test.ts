@@ -92,3 +92,16 @@ test("a failed write gives the timer back untouched", async () => {
   assert.deepEqual(s.tracker.getActiveTimer(), before);
   assert.equal(s.fm(task).total_hours, 0, "nothing was half-logged");
 });
+
+test("a manual entry counts for the day it was entered for", async () => {
+  const s = await setup();
+  const task = await s.task("Design");
+  await s.tracker.addManualEntry(s.ws, task as never, 3, "2026-09-01");
+  await settle();
+
+  const data = await s.analytics.collect(s.ws);
+  assert.deepEqual(data.records.map((r) => r.iso), ["2026-09-01"], `TZ=${process.env.TZ}`);
+  assert.match(s.logRows(task)[0], /^\| 2026-09-01 \| 3 \|/);
+  assert.equal(s.fm(task).days_count, 1);
+  assert.equal(s.fm(task).total_hours, 3);
+});

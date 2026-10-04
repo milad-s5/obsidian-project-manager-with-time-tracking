@@ -1,6 +1,7 @@
 import { App, TFile, normalizePath } from "obsidian";
 import { ActiveTimer, Workspace } from "../types";
 import { toISOFileStamp, todayString } from "../utils/DateUtils";
+import { isoToDate } from "../utils/Jalali";
 import { TaskManager } from "./TaskManager";
 import { isBacklogStatus } from "../utils/StatusColors";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
@@ -245,10 +246,13 @@ export class TimeTracker {
     hours: number,
     date: string
   ): Promise<void> {
-    const start = new Date(`${date}T00:00:00.000Z`);
+    // Local noon of that day. This used to be midnight UTC, which west of UTC
+    // is still the evening before, so the entry landed a day early. Noon also
+    // keeps the day when the vault is later opened a few timezones away.
+    const start = isoToDate(date);
     const end = new Date(start.getTime() + hours * 3600000);
-    await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
     await this.writeTimeEntry(ws, taskFile.basename, hours, start, end);
+    await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
   }
 
   private async writeTimeEntry(

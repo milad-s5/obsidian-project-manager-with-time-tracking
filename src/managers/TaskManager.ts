@@ -2,6 +2,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import { Workspace } from "../types";
 import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
+import { toISODate } from "../utils/Jalali";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
 
 export class TaskManager {
@@ -89,7 +90,10 @@ ${extraLines}---
     const currentHours = Number(fm.total_hours ?? 0);
     const updatedHours = Math.round((currentHours + newHours) * 100) / 100;
 
-    const dateStr = todayString();
+    // The day the work counts for: the one it started on, which is also the
+    // day the dashboard files it under. This used to be today, so an entry
+    // added for last Monday was logged, and counted in days_count, as today.
+    const dateStr = toISODate(startTime);
     const startStr = startTime.toISOString();
     const endStr = endTime.toISOString();
 
