@@ -4,6 +4,9 @@ dist/
 main.js
 main.js.map
 
+# Obsidian writes the plugin's settings and running timer here
+data.json
+
 *.tsbuildinfo
 
 .obsidian/
