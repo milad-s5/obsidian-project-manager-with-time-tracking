@@ -1,0 +1,7 @@
+# Text is stored with LF line endings whichever editor saved it, so that a
+# one-line change never shows up as a rewrite of the whole file
+* text=auto eol=lf
+
+*.png binary
+*.gif binary
+*.jpg binary
