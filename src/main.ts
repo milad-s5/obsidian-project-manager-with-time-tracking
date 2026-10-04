@@ -20,18 +20,19 @@ import { BoardKind } from "./views/BoardColumn";
 import { BACKLOG_STATUS, isBacklogStatus } from "./utils/StatusColors";
 
 export default class ProjectManagerPlugin extends Plugin {
-  settings: ProjectManagerSettings;
-  workspaceManager: WorkspaceManager;
-  projectManager: ProjectManager;
-  taskManager: TaskManager;
-  timeTracker: TimeTracker;
-  analytics: AnalyticsManager;
-  noteScanner: NoteScanner;
-  archiveManager: ArchiveManager;
+  // Assigned in onload, which Obsidian always runs before anything reads them
+  settings!: ProjectManagerSettings;
+  workspaceManager!: WorkspaceManager;
+  projectManager!: ProjectManager;
+  taskManager!: TaskManager;
+  timeTracker!: TimeTracker;
+  analytics!: AnalyticsManager;
+  noteScanner!: NoteScanner;
+  archiveManager!: ArchiveManager;
   /** Public surface for other plugins — see src/api.ts */
-  api: ProjectManagerApi;
+  api!: ProjectManagerApi;
   /** Jalali or Gregorian, per settings. Rebuilt whenever those change. */
-  calendar: Calendar;
+  calendar!: Calendar;
   /** Raw timer from data.json — held until timeTracker has been constructed */
   private persistedTimer: unknown = null;
   /** Shows only "active" status items — lives on the plugin, not a view, so
