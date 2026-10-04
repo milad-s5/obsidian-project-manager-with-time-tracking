@@ -20,11 +20,10 @@
   "author": "Milad Samimifar",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^16.11.6",
-    "builtin-modules": "^3.3.0",
-    "esbuild": "^0.17.3",
+    "@types/node": "^20.19.43",
+    "esbuild": "^0.28.2",
     "obsidian": "1.13.0",
-    "tslib": "2.4.0",
-    "typescript": "4.7.4"
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3"
   }
 }
