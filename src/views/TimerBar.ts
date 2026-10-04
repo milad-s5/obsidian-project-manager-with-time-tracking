@@ -86,11 +86,13 @@ export function renderTimerBar(
 
   const stopBtn = bar.createEl("button", { cls: "pm-btn pm-btn-danger", text: "⏹ Stop" });
   stopBtn.addEventListener("click", async () => {
+    stopBtn.disabled = true;
     try {
       showStopNotice(await tracker.stopTimer(ws));
       onChange();
     } catch (err) {
       new Notice(err instanceof Error ? err.message : String(err));
+      stopBtn.disabled = false;
     }
   });
 }

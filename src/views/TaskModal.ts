@@ -267,20 +267,27 @@ export class TaskModal extends Modal {
         onChange: (v) => (this.manualDate = v),
       });
 
-      manualDiv
-        .createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Add Entry" })
-        .addEventListener("click", async () => {
-          const h = parseFloat(this.manualHours);
-          if (isNaN(h) || h <= 0) {
-            new Notice("Enter a valid number of hours");
-            return;
-          }
+      const addBtn = manualDiv.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Add Entry" });
+      addBtn.addEventListener("click", async () => {
+        // A second click while the first is still writing would log it twice
+        if (addBtn.disabled) return;
+        const h = parseFloat(this.manualHours);
+        if (isNaN(h) || h <= 0) {
+          new Notice("Enter a valid number of hours");
+          return;
+        }
+        addBtn.disabled = true;
+        try {
           const date = this.manualDate || todayString();
           await this.plugin.timeTracker.addManualEntry(this.ws, file, h, date);
           new Notice(`Added ${h}h for ${date}`);
           this.plugin.refreshTimerViews();
           this.close();
-        });
+        } catch (err) {
+          new Notice(err instanceof Error ? err.message : String(err));
+          addBtn.disabled = false;
+        }
+      });
     }
 
     // Buttons

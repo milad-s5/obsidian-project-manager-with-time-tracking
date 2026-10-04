@@ -61,3 +61,34 @@ test("a renamed folder carries the timer along", async () => {
   s.tracker.handleRename("Other/Tasks", "Work/Tasks");
   assert.equal(s.tracker.getActiveTaskPath(), "Other/Tasks/deep.md");
 });
+
+test("pressing Stop twice logs the session once", async () => {
+  const s = await setup({ latency: 15 });
+  const task = await s.task("Fix login");
+  s.tracker.startTimer(task.path, "Fix login", s.ws.id);
+  s.backdate(60);
+
+  const first = s.tracker.stopTimer(s.ws);
+  await new Promise((r) => setTimeout(r, 5)); // the second click lands mid-save
+  await assert.rejects(s.tracker.stopTimer(s.ws), /No active timer/);
+  assert.equal((await first).hours, 1);
+  await settle(40);
+
+  assert.equal(s.entries().length, 1);
+  assert.equal(s.logRows(task).length, 1);
+  assert.equal(s.fm(task).total_hours, 1);
+});
+
+test("a failed write gives the timer back untouched", async () => {
+  const s = await setup();
+  const task = await s.task("Unlucky");
+  s.tracker.startTimer(task.path, "Unlucky", s.ws.id);
+  s.backdate(45);
+  const before = { ...s.tracker.getActiveTimer()! };
+  // The entry has nowhere to go
+  await s.app.vault.delete(s.app.vault.getAbstractFileByPath("Work/TimeEntries")!);
+
+  await assert.rejects(s.tracker.stopTimer(s.ws), /ENOENT/);
+  assert.deepEqual(s.tracker.getActiveTimer(), before);
+  assert.equal(s.fm(task).total_hours, 0, "nothing was half-logged");
+});

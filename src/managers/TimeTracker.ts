@@ -84,17 +84,29 @@ export class TimeTracker {
     const start = new Date(t.startedAt);
     const end = new Date();
 
+    // Taken off the tracker before the first await. A second Stop, from a
+    // double-click or from Stop pressed in two views, then finds no timer
+    // instead of logging the same session again.
+    this.activeTimer = null;
+
     // The time entry is written even when the note cannot be found. Silently
     // dropping it, as this used to, lost the whole session while the notice
     // still said it had been logged.
     const taskFile = this.findTaskFile(t.taskPath, ws);
+    try {
+      // The entry goes first because it is the record that counts: if it
+      // cannot be written, nothing has been logged and the timer can come back
+      // exactly as it was.
+      await this.writeTimeEntry(ws, taskFile?.basename ?? basenameOf(t.taskPath), hours, start, end);
+    } catch (err) {
+      if (!this.activeTimer) this.activeTimer = t;
+      throw err;
+    }
+    this.persist();
+
     if (taskFile) {
       await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
     }
-    await this.writeTimeEntry(ws, taskFile?.basename ?? basenameOf(t.taskPath), hours, start, end);
-
-    this.activeTimer = null;
-    this.persist();
     return { hours, taskFound: !!taskFile };
   }
 
