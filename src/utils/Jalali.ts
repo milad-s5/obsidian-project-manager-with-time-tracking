@@ -17,9 +17,6 @@ export const WEEKDAYS_FULL_FA = ["شنبه", "یک‌شنبه", "دوشنبه", 
 
 export const SEASONS_FA = ["بهار", "تابستان", "پاییز", "زمستان"];
 
-// Date.getDay(), where 0 is Sunday, → a Saturday-first week column
-const JS_COL = [1, 2, 3, 4, 5, 6, 0];
-
 export interface JalaliDate { jy: number; jm: number; jd: number; }
 export interface GregorianDate { gy: number; gm: number; gd: number; }
 
@@ -167,100 +164,8 @@ export function rangeDays(fromISO: string, toISO: string): string[] {
   return out;
 }
 
-export function isoToJalali(iso: string): JalaliDate {
-  const d = isoToDate(iso);
-  return gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
-}
-
-export function jalaliToISO(jy: number, jm: number, jd: number): string {
-  const { gy, gm, gd } = jalaliToGregorian(jy, jm, jd);
-  return toISODate(new Date(gy, gm - 1, gd, 12));
-}
-
 // ── Display ─────────────────────────────────────────────────────────────
 
 export function toPersianDigits(value: string | number): string {
   return String(value).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
-}
-
-/** Day, month name and year in Persian digits, e.g. ۱۷ مرداد ۱۴۰۵ */
-export function jalaliLabel(iso: string): string {
-  const { jy, jm, jd } = isoToJalali(iso);
-  return `${toPersianDigits(jd)} ${MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}`;
-}
-
-/** Month name and year in Persian digits, e.g. مرداد ۱۴۰۵ */
-export function jalaliMonthLabel(jy: number, jm: number): string {
-  return `${MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}`;
-}
-
-/** Full Persian weekday name, e.g. شنبه */
-export function weekdayLabel(iso: string): string {
-  return WEEKDAYS_FULL_FA[weekdayCol(iso)];
-}
-
-export function seasonName(jm: number): string {
-  return SEASONS_FA[Math.floor((jm - 1) / 3)];
-}
-
-// ── Calendar layout ─────────────────────────────────────────────────────
-
-/** Saturday-first week column for a given day */
-export function weekdayCol(iso: string): number {
-  return JS_COL[isoToDate(iso).getDay()];
-}
-
-/** Start column of a Jalali month's first day — pads the top of the grid */
-export function jalaliFirstWeekdayCol(jy: number, jm: number): number {
-  return weekdayCol(jalaliToISO(jy, jm, 1));
-}
-
-export interface JalaliMonthGroup { jy: number; jm: number; isos: string[]; }
-
-/** Groups the days of a range by Jalali month */
-export function groupByJalaliMonth(isos: string[]): JalaliMonthGroup[] {
-  const groups = new Map<string, JalaliMonthGroup>();
-  for (const iso of isos) {
-    const { jy, jm } = isoToJalali(iso);
-    const key = `${jy}-${jm}`;
-    let g = groups.get(key);
-    if (!g) { g = { jy, jm, isos: [] }; groups.set(key, g); }
-    g.isos.push(iso);
-  }
-  return Array.from(groups.values()).sort((a, b) => (a.jy !== b.jy ? a.jy - b.jy : a.jm - b.jm));
-}
-
-/** The Saturday of the week this day falls in */
-export function startOfJalaliWeek(iso: string): string {
-  return addDays(iso, -weekdayCol(iso));
-}
-
-/** First day of this day's Jalali month */
-export function startOfJalaliMonth(iso: string): string {
-  const { jy, jm } = isoToJalali(iso);
-  return jalaliToISO(jy, jm, 1);
-}
-
-/** First day of this day's Jalali season */
-export function startOfJalaliSeason(iso: string): string {
-  const { jy, jm } = isoToJalali(iso);
-  return jalaliToISO(jy, Math.floor((jm - 1) / 3) * 3 + 1, 1);
-}
-
-/** First day of this day's Jalali year */
-export function startOfJalaliYear(iso: string): string {
-  const { jy } = isoToJalali(iso);
-  return jalaliToISO(jy, 1, 1);
-}
-
-/**
- * Shifts by whole Jalali months. The day clamps to the target month's last day,
- * since the 31st does not exist in every month and Esfand 30 only in leap years.
- */
-export function shiftJalaliMonths(iso: string, delta: number): string {
-  const { jy, jm, jd } = isoToJalali(iso);
-  const total = jy * 12 + (jm - 1) + delta;
-  const ny = Math.floor(total / 12);
-  const nm = total - ny * 12 + 1;
-  return jalaliToISO(ny, nm, Math.min(jd, jalaliMonthLength(ny, nm)));
 }

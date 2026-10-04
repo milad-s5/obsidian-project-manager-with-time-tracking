@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Menu, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Menu } from "obsidian";
 import { updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
@@ -492,7 +492,7 @@ export class ProjectDashboardView extends ItemView {
         buckets.set(start, bucket);
       }
       for (const bucket of buckets.values()) {
-        const { d: jd, m: jm } = this.plugin.calendar.fromISO(bucket.start);
+        const { d: jd } = this.plugin.calendar.fromISO(bucket.start);
         points.push({
           key: bucket.start,
           axisLabel: this.plugin.calendar.digits(jd),

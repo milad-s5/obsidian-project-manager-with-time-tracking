@@ -72,7 +72,7 @@ export class TimeTracker {
     const t = this.activeTimer;
 
     // Logged hours are time actually worked, pauses excluded — not the wall-clock
-    // span from start to stop. Which is why diffHours is no longer used here.
+    // span from start to stop.
     const hours = Math.round((this.getElapsedMs() / 3600000) * 100) / 100;
     const start = new Date(t.startedAt);
     const end = new Date();

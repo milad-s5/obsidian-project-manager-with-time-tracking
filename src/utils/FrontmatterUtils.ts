@@ -1,16 +1,5 @@
 import { App, TFile } from "obsidian";
 
-export async function updateFrontmatterField(
-  app: App,
-  file: TFile,
-  key: string,
-  value: unknown
-): Promise<void> {
-  await app.fileManager.processFrontMatter(file, (fm) => {
-    fm[key] = value;
-  });
-}
-
 export async function updateFrontmatterFields(
   app: App,
   file: TFile,

@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting, Modal, ButtonComponent, Notice } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import ProjectManagerPlugin from "./main";
-import { DeleteBehaviour, Workspace, DEFAULT_SETTINGS } from "./types";
+import { DeleteBehaviour } from "./types";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { CalendarKind, WeekStart } from "./utils/Calendar";
 

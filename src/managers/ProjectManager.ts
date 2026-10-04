@@ -1,5 +1,5 @@
 import { App, TFile, normalizePath } from "obsidian";
-import { Workspace, ProjectFrontmatter } from "../types";
+import { Workspace } from "../types";
 import { linkSlug, slugify } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
 import { isUnderAnyFolder, projectFolders, taskFolders } from "../utils/WorkspacePaths";

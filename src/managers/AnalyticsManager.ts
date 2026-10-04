@@ -300,7 +300,7 @@ export function hoursPerDay(records: TimeRecord[], days: string[]): Map<string, 
   return map;
 }
 
-export function groupHoursBy<T>(
+export function groupHoursBy(
   records: TimeRecord[],
   key: (r: TimeRecord) => string,
   label: (slug: string) => string

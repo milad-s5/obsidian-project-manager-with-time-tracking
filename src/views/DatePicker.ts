@@ -24,7 +24,7 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
 
   const trigger = container.createDiv({ cls: "pm-dp-trigger", attr: { tabindex: "0" } });
   const label = trigger.createSpan({ cls: "pm-dp-trigger-label" });
-  const icon = trigger.createSpan({ cls: "pm-dp-trigger-icon", text: "📅" });
+  trigger.createSpan({ cls: "pm-dp-trigger-icon", text: "📅" });
   const clearBtn = trigger.createSpan({ cls: "pm-dp-clear", text: "✕", attr: { "aria-label": "Clear date" } });
 
   const panel = container.createDiv({ cls: "pm-dp-panel is-hidden" });

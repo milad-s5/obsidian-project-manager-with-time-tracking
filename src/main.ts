@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, TFile, Notice, addIcon } from "obsidian";
+import { Plugin, TFile, Notice } from "obsidian";
 import { ProjectManagerSettings, DEFAULT_SETTINGS, Workspace } from "./types";
 import { ProjectManagerSettingTab } from "./settings";
 import { WorkspaceManager } from "./managers/WorkspaceManager";

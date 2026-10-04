@@ -1,5 +1,5 @@
 import { App, TFile, normalizePath } from "obsidian";
-import { Workspace, TaskFrontmatter } from "../types";
+import { Workspace } from "../types";
 import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
@@ -89,8 +89,6 @@ ${extraLines}---
     const currentHours = Number(fm.total_hours ?? 0);
     const updatedHours = Math.round((currentHours + newHours) * 100) / 100;
 
-    // Parse existing days
-    const existingDays = new Set<string>();
     const dateStr = todayString();
     const startStr = startTime.toISOString();
     const endStr = endTime.toISOString();

@@ -30,8 +30,4 @@ export class WorkspaceManager {
       }
     }
   }
-
-  getWorkspaceById(workspaces: Workspace[], id: string): Workspace | undefined {
-    return workspaces.find((ws) => ws.id === id);
-  }
 }
