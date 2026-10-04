@@ -2,6 +2,7 @@ import { App, Notice } from "obsidian";
 import type ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { ConfirmModal } from "./ConfirmModal";
+import { StopResult } from "../managers/TimeTracker";
 
 /** Below this there is nothing to lose, so reset without asking */
 const RESET_CONFIRM_THRESHOLD_MS = 60_000;
@@ -86,13 +87,21 @@ export function renderTimerBar(
   const stopBtn = bar.createEl("button", { cls: "pm-btn pm-btn-danger", text: "⏹ Stop" });
   stopBtn.addEventListener("click", async () => {
     try {
-      const hours = await tracker.stopTimer(ws);
-      new Notice(`Stopped. Logged ${hours}h`);
+      showStopNotice(await tracker.stopTimer(ws));
       onChange();
     } catch (err) {
       new Notice(err instanceof Error ? err.message : String(err));
     }
   });
+}
+
+/** Says what a stop logged — differently when the task note itself was gone */
+export function showStopNotice(result: StopResult): void {
+  new Notice(
+    result.taskFound
+      ? `Stopped. Logged ${result.hours}h`
+      : `Stopped. Logged ${result.hours}h as a time entry — the task note was not found`
+  );
 }
 
 /**

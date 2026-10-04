@@ -3,6 +3,13 @@ import { ActiveTimer, Workspace } from "../types";
 import { toISOFileStamp, todayString } from "../utils/DateUtils";
 import { TaskManager } from "./TaskManager";
 import { isBacklogStatus } from "../utils/StatusColors";
+import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
+
+export interface StopResult {
+  hours: number;
+  /** False when the task note could not be found: only the time entry was written */
+  taskFound: boolean;
+}
 
 export class TimeTracker {
   private activeTimer: ActiveTimer | null = null;
@@ -67,7 +74,7 @@ export class TimeTracker {
     else this.pause();
   }
 
-  async stopTimer(ws: Workspace): Promise<number> {
+  async stopTimer(ws: Workspace): Promise<StopResult> {
     if (!this.activeTimer) throw new Error("No active timer");
     const t = this.activeTimer;
 
@@ -77,18 +84,52 @@ export class TimeTracker {
     const start = new Date(t.startedAt);
     const end = new Date();
 
-    const taskFile = this.app.vault.getAbstractFileByPath(
-      normalizePath(t.taskPath)
-    ) as TFile | null;
-
+    // The time entry is written even when the note cannot be found. Silently
+    // dropping it, as this used to, lost the whole session while the notice
+    // still said it had been logged.
+    const taskFile = this.findTaskFile(t.taskPath, ws);
     if (taskFile) {
       await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
-      await this.writeTimeEntry(ws, taskFile, hours, start, end);
     }
+    await this.writeTimeEntry(ws, taskFile?.basename ?? basenameOf(t.taskPath), hours, start, end);
 
     this.activeTimer = null;
     this.persist();
-    return hours;
+    return { hours, taskFound: !!taskFile };
+  }
+
+  /**
+   * Keeps the timer on its task when the note is renamed or moved — which
+   * archiving does the moment a task is marked done, timer running or not.
+   * A renamed folder is followed too, for a task somewhere inside it.
+   */
+  handleRename(newPath: string, oldPath: string): void {
+    const t = this.activeTimer;
+    if (!t) return;
+    if (t.taskPath === oldPath) t.taskPath = newPath;
+    else if (t.taskPath.startsWith(`${oldPath}/`)) t.taskPath = newPath + t.taskPath.slice(oldPath.length);
+    else return;
+    this.persist();
+  }
+
+  /**
+   * The timer's task note: where it was last seen, or — if it moved while
+   * the plugin was not looking, say with Obsidian closed — the task of the
+   * same name in this workspace.
+   */
+  private findTaskFile(taskPath: string, ws: Workspace): TFile | null {
+    const byPath = this.app.vault.getAbstractFileByPath(normalizePath(taskPath));
+    if (byPath instanceof TFile) return byPath;
+    const name = basenameOf(taskPath);
+    const folders = taskFolders(ws);
+    return (
+      this.app.vault.getMarkdownFiles().find(
+        (f) =>
+          f.basename === name &&
+          isUnderAnyFolder(f.path, folders) &&
+          this.app.metadataCache.getFileCache(f)?.frontmatter?.type === "task"
+      ) ?? null
+    );
   }
 
   /** Throws it away without logging — for when a restored timer is wrong */
@@ -195,18 +236,17 @@ export class TimeTracker {
     const start = new Date(`${date}T00:00:00.000Z`);
     const end = new Date(start.getTime() + hours * 3600000);
     await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
-    await this.writeTimeEntry(ws, taskFile, hours, start, end);
+    await this.writeTimeEntry(ws, taskFile.basename, hours, start, end);
   }
 
   private async writeTimeEntry(
     ws: Workspace,
-    taskFile: TFile,
+    taskSlug: string,
     hours: number,
     startTime: Date,
     endTime: Date
   ): Promise<void> {
     const stamp = toISOFileStamp(endTime);
-    const taskSlug = taskFile.basename;
     let path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${taskSlug}_${stamp}.md`);
 
     let counter = 1;
@@ -226,4 +266,9 @@ created: "${todayString()}"
 `;
     await this.app.vault.create(path, content);
   }
+}
+
+/** "Tasks/write-report.md" → "write-report" */
+function basenameOf(path: string): string {
+  return (path.split("/").pop() ?? path).replace(/\.md$/i, "");
 }

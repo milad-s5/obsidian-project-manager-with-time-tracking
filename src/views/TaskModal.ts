@@ -3,7 +3,7 @@ import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
-import { resetTimerWithConfirm } from "./TimerBar";
+import { resetTimerWithConfirm, showStopNotice } from "./TimerBar";
 import { normalizeStatus } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
 import { ConfirmModal } from "./ConfirmModal";
@@ -224,8 +224,7 @@ export class TaskModal extends Modal {
         const stopBtn = timerDiv.createEl("button", { cls: "pm-btn pm-btn-danger", text: "⏹ Stop Timer" });
         stopBtn.addEventListener("click", async () => {
           try {
-            const hours = await this.plugin.timeTracker.stopTimer(this.ws);
-            new Notice(`Stopped. Logged ${hours}h`);
+            showStopNotice(await this.plugin.timeTracker.stopTimer(this.ws));
             this.close();
             // Refresh kanban if open
             this.plugin.refreshTimerViews();

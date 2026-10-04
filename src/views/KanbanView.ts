@@ -7,7 +7,7 @@ import { renderBoardColumn } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { isArchivedPath, listProjectOptions } from "../utils/WorkspacePaths";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
-import { renderTimerBar, resetTimerWithConfirm, tickTimerDisplays } from "./TimerBar";
+import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
@@ -367,8 +367,7 @@ export class KanbanView extends ItemView {
         menu.addItem((item) =>
           item.setTitle("Stop timer").setIcon("square").onClick(async () => {
             try {
-              const hours = await this.plugin.timeTracker.stopTimer(this.currentWorkspace);
-              new Notice(`Stopped. Logged ${hours}h`);
+              showStopNotice(await this.plugin.timeTracker.stopTimer(this.currentWorkspace));
               await this.render();
             } catch (err) {
               new Notice(err instanceof Error ? err.message : String(err));

@@ -15,7 +15,7 @@ import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { NoteScanner } from "./utils/NoteContent";
-import { resetTimerWithConfirm } from "./views/TimerBar";
+import { resetTimerWithConfirm, showStopNotice } from "./views/TimerBar";
 import { BoardKind } from "./views/BoardColumn";
 import { BACKLOG_STATUS, isBacklogStatus } from "./utils/StatusColors";
 
@@ -54,6 +54,10 @@ export default class ProjectManagerPlugin extends Plugin {
     this.rebuildCalendar();
 
     this.restoreTimer();
+    // Archiving moves a task's note the moment it closes, timer or no timer
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => this.timeTracker.handleRename(file.path, oldPath))
+    );
     await this.migrateStatusNames();
     await this.addBacklogStatus();
 
@@ -153,8 +157,7 @@ export default class ProjectManagerPlugin extends Plugin {
       callback: async () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
         const ws = this.getCurrentWorkspace();
-        const hours = await this.timeTracker.stopTimer(ws);
-        new Notice(`Stopped. Logged ${hours}h`);
+        showStopNotice(await this.timeTracker.stopTimer(ws));
         this.refreshTimerViews();
       },
     });
