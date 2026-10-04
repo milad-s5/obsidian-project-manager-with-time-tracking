@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setup, settle } from "./helpers";
+import { setup, settle, workspace } from "./helpers";
 
 test("time is kept when the task is archived while its timer runs", async () => {
   const s = await setup();
@@ -104,4 +104,18 @@ test("a manual entry counts for the day it was entered for", async () => {
   assert.match(s.logRows(task)[0], /^\| 2026-09-01 \| 3 \|/);
   assert.equal(s.fm(task).days_count, 1);
   assert.equal(s.fm(task).total_hours, 3);
+});
+
+test("a timer stops into the workspace it was started in", async () => {
+  const home = { ...workspace("Home", "ws_home") };
+  const s = await setup({ workspaces: [workspace(), home] });
+  s.tracker.setWorkspaceResolver((id) => s.workspaces.find((w) => w.id === id || `[[${w.name}]]` === id) ?? null);
+  const task = await s.task("Client call");
+  s.tracker.startTimer(task.path, "Client call", s.ws.id);
+  s.backdate(30);
+
+  // The board shows Home by the time Stop is pressed
+  await s.tracker.stopTimer(home);
+  await settle();
+  assert.deepEqual(s.entries().map((f) => f.path.split("/")[0]), ["Work"]);
 });

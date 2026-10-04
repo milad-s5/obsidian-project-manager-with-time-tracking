@@ -16,11 +16,17 @@ export class TimeTracker {
   private activeTimer: ActiveTimer | null = null;
   /** Every state change has to reach disk, or it will not survive a crash */
   private persist: () => void = () => {};
+  /** Turns the workspace id saved with a timer back into the workspace */
+  private resolveWorkspace: (id: string) => Workspace | null = () => null;
 
   constructor(private app: App, private taskManager: TaskManager) {}
 
   setPersistHandler(fn: () => void): void {
     this.persist = fn;
+  }
+
+  setWorkspaceResolver(fn: (id: string) => Workspace | null): void {
+    this.resolveWorkspace = fn;
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────
@@ -75,9 +81,16 @@ export class TimeTracker {
     else this.pause();
   }
 
-  async stopTimer(ws: Workspace): Promise<StopResult> {
+  /**
+   * @param fallback used only when the timer's own workspace no longer
+   *                 exists. Every caller passes whichever workspace its board
+   *                 shows, and that is not necessarily the one the timer was
+   *                 started in.
+   */
+  async stopTimer(fallback: Workspace): Promise<StopResult> {
     if (!this.activeTimer) throw new Error("No active timer");
     const t = this.activeTimer;
+    const ws = this.resolveWorkspace(t.workspaceId) ?? fallback;
 
     // Logged hours are time actually worked, pauses excluded — not the wall-clock
     // span from start to stop.

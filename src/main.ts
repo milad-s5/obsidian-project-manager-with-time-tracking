@@ -13,7 +13,8 @@ import { AnalyticsManager } from "./managers/AnalyticsManager";
 import { ArchiveManager } from "./managers/ArchiveManager";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
-import { defaultArchiveFolder } from "./utils/WorkspacePaths";
+import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
+import { linkSlug } from "./utils/FrontmatterUtils";
 import { NoteScanner } from "./utils/NoteContent";
 import { resetTimerWithConfirm, showStopNotice } from "./views/TimerBar";
 import { BoardKind } from "./views/BoardColumn";
@@ -47,6 +48,7 @@ export default class ProjectManagerPlugin extends Plugin {
     this.taskManager = new TaskManager(this.app);
     this.timeTracker = new TimeTracker(this.app, this.taskManager);
     this.timeTracker.setPersistHandler(() => void this.savePluginData());
+    this.timeTracker.setWorkspaceResolver((id) => this.findWorkspace(id));
     this.analytics = new AnalyticsManager(this.app);
     this.noteScanner = new NoteScanner(this.app);
     this.archiveManager = new ArchiveManager(this.app, this.workspaceManager);
@@ -127,7 +129,8 @@ export default class ProjectManagerPlugin extends Plugin {
         const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
         if (fm?.type !== "task") { new Notice("Active file is not a task"); return; }
         try {
-          this.timeTracker.startTimer(file.path, fm.title ?? file.basename, fm.workspace ?? this.settings.defaultWorkspaceId);
+          const ws = this.workspaceOfFile(file) ?? this.getCurrentWorkspace();
+          this.timeTracker.startTimer(file.path, fm.title ?? file.basename, ws.id);
           new Notice(`Timer started: ${fm.title}`);
           this.refreshTimerViews();
         } catch (err) {
@@ -307,6 +310,31 @@ export default class ProjectManagerPlugin extends Plugin {
     new Notice(
       `Timer restored (${state}): ${t.taskTitle} — ${this.timeTracker.getElapsed()}`,
       8000
+    );
+  }
+
+  /**
+   * A workspace by id, or failing that by name. Timers started from the
+   * command palette used to save the note's "[[Name]]" link instead of the
+   * id, and those have to keep resolving after an update.
+   */
+  findWorkspace(ref: string): Workspace | null {
+    return (
+      this.settings.workspaces.find((ws) => ws.id === ref) ??
+      this.settings.workspaces.find((ws) => ws.name === linkSlug(ref)) ??
+      null
+    );
+  }
+
+  /** The workspace a note belongs to: the one its frontmatter names, else the one whose folders hold it */
+  workspaceOfFile(file: TFile): Workspace | null {
+    const named = linkSlug(this.app.metadataCache.getFileCache(file)?.frontmatter?.workspace);
+    return (
+      this.settings.workspaces.find((ws) => named && ws.name === named) ??
+      this.settings.workspaces.find((ws) =>
+        isUnderAnyFolder(file.path, [...taskFolders(ws), ...projectFolders(ws)])
+      ) ??
+      null
     );
   }
 
