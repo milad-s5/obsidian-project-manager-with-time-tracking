@@ -48,6 +48,22 @@ jobs:
           fi
           echo "versions.json maps $TAG_VERSION to $(jq -r --arg v "$TAG_VERSION" '.[$v]' versions.json)"
 
+      # The release page is what people see when they update, so its text is
+      # this version's section of CHANGELOG.md. A release with no section
+      # fails here rather than going out with nothing to say.
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          cat release-notes.md
+
       - name: Install dependencies
         run: npm ci
 
@@ -69,4 +85,5 @@ jobs:
           # Failing on a missing file is the point: a silently empty release is
           # worse than a failed build.
           fail_on_unmatched_files: true
+          body_path: release-notes.md
           generate_release_notes: true
