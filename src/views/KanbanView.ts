@@ -146,6 +146,20 @@ export class KanbanView extends ItemView {
           await this.plugin.syncArchiveFor(this.currentWorkspace, file);
           await this.render();
         },
+        addLabel: "task",
+        onAdd: () => {
+          // Same as quick-add: take the board's filters, so the new task
+          // lands where it can be seen
+          const query = this.filterProject.toLowerCase();
+          const project = query
+            ? listProjectOptions(this.app, this.currentWorkspace).find((p) => p.title.toLowerCase() === query)
+            : undefined;
+          this.plugin.openNewTaskModal(this.currentWorkspace, {
+            status,
+            priority: this.filterPriority || undefined,
+            projectSlug: project?.slug,
+          });
+        },
       });
       if (isBacklogStatus(status)) this.renderQuickAdd(col, cards, status);
 

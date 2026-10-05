@@ -187,6 +187,9 @@
   flex-direction: column-reverse;
   order: -1;
 }
+.pm-kanban-col.is-collapsed .pm-col-add {
+  display: none;
+}
 .pm-kanban-col.is-collapsed .pm-col-title {
   writing-mode: vertical-rl;
   white-space: nowrap;
@@ -246,6 +249,7 @@
   align-items: center;
   gap: 4px;
 }
+.pm-kanban-col button.pm-col-add,
 .pm-kanban-col button.pm-col-fold {
   display: inline-flex;
   align-items: center;
@@ -261,10 +265,12 @@
   color: var(--text-faint);
   cursor: pointer;
 }
+.pm-kanban-col button.pm-col-add:hover,
 .pm-kanban-col button.pm-col-fold:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+.pm-kanban-col button.pm-col-add svg,
 .pm-kanban-col button.pm-col-fold svg {
   width: 15px;
   height: 15px;

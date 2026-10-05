@@ -1010,6 +1010,11 @@ export class ProjectDashboardView extends ItemView {
           this.plugin.refreshProjectDashboard();
           this.plugin.refreshKanban();
         },
+        addLabel: "project",
+        onAdd: () => this.plugin.openNewProjectModal(this.currentWorkspace, {
+          status,
+          priority: this.filterPriority || undefined,
+        }),
       });
 
       if (!colProjects.length) cards.createDiv({ cls: "pm-col-empty", text: "No projects here" });

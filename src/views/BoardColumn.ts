@@ -12,6 +12,10 @@ export interface BoardColumnOptions {
   onToggle: (collapsed: boolean) => void;
   /** A card's file path was dropped on this column */
   onDrop: (path: string) => Promise<void>;
+  /** Adds a header "+" that creates a new item in this column's status */
+  onAdd?: () => void;
+  /** Names the item for the "+" button's label — "task", "project" */
+  addLabel?: string;
 }
 
 export interface BoardColumn {
@@ -39,6 +43,18 @@ export function renderBoardColumn(board: HTMLElement, o: BoardColumnOptions): Bo
   header.createSpan({ cls: "pm-col-title", text: o.status });
   const end = header.createDiv({ cls: "pm-col-header-end" });
   end.createSpan({ cls: "pm-col-count", text: String(o.count) });
+  if (o.onAdd) {
+    const onAdd = o.onAdd;
+    const add = end.createEl("button", {
+      cls: "pm-col-add",
+      attr: { "aria-label": `New ${o.addLabel ?? "item"} in ${o.status}` },
+    });
+    setIcon(add, "plus");
+    add.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onAdd();
+    });
+  }
   const fold = end.createEl("button", { cls: "pm-col-fold" });
 
   const paint = () => {

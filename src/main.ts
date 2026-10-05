@@ -339,16 +339,24 @@ export default class ProjectManagerPlugin extends Plugin {
     new TaskModal(this.app, this, ws, file).open();
   }
 
-  openNewTaskModal(ws: Workspace): void {
-    new TaskModal(this.app, this, ws, null).open();
+  /** `defaults` prefill the form — a column's "+" passes its status */
+  openNewTaskModal(ws: Workspace, defaults: { status?: string; priority?: string; projectSlug?: string } = {}): void {
+    const modal = new TaskModal(this.app, this, ws, null);
+    if (defaults.status) modal.status = defaults.status;
+    if (defaults.priority) modal.priority = defaults.priority;
+    if (defaults.projectSlug) modal.projectSlug = defaults.projectSlug;
+    modal.open();
   }
 
   openProjectModal(file: TFile, ws: Workspace): void {
     new ProjectModal(this.app, this, ws, file).open();
   }
 
-  openNewProjectModal(ws: Workspace): void {
-    new ProjectModal(this.app, this, ws, null).open();
+  openNewProjectModal(ws: Workspace, defaults: { status?: string; priority?: string } = {}): void {
+    const modal = new ProjectModal(this.app, this, ws, null);
+    if (defaults.status) modal.status = defaults.status;
+    if (defaults.priority) modal.priority = defaults.priority;
+    modal.open();
   }
 
   openProjectDashboard(): void {
