@@ -8,6 +8,8 @@ import { formatHours } from "./DashboardCharts";
 import { ConfirmModal } from "./ConfirmModal";
 import { deleteNote, deleteWarning } from "../utils/FileOps";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
+import { readNoteSection, writeNoteSection } from "../utils/NoteContent";
+import { mountNotesEditor, NotesEditor } from "./NotesEditor";
 
 export class ProjectModal extends Modal {
   plugin: ProjectManagerPlugin;
@@ -21,6 +23,10 @@ export class ProjectModal extends Modal {
   status = "todo";
   priority = "medium";
   due = "";
+  notes = "";
+  /** The note as read from the file, so Save only rewrites it when it changed */
+  private originalNotes = "";
+  private notesEditor: NotesEditor | null = null;
 
   constructor(
     app: App,
@@ -48,11 +54,16 @@ export class ProjectModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("pm-modal");
+    if (this.file) {
+      this.notes = this.originalNotes = readNoteSection(await this.app.vault.read(this.file));
+    }
 
     // Enter in any field does what clicking Create/Save does
     contentEl.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Enter" || e.isComposing) return;
-      if ((e.target as HTMLElement).tagName === "TEXTAREA") return;
+      const target = e.target as HTMLElement;
+      // A new line in the note, not a submit
+      if (target.tagName === "TEXTAREA" || target.isContentEditable) return;
       e.preventDefault();
       void this.submitAndClose();
     });
@@ -79,6 +90,14 @@ export class ProjectModal extends Modal {
       cal: this.plugin.calendar,
       value: this.due,
       onChange: (v) => (this.due = v),
+    });
+
+    this.notesEditor = mountNotesEditor(contentEl, {
+      app: this.app,
+      file: this.file,
+      value: this.notes,
+      onChange: (v) => (this.notes = v),
+      onOpenLink: () => this.close(),
     });
 
     if (!this.isNew && this.file) {
@@ -210,13 +229,14 @@ export class ProjectModal extends Modal {
 
   async save(): Promise<void> {
     if (this.isNew) {
-      await this.plugin.projectManager.createProject(
+      const file = await this.plugin.projectManager.createProject(
         this.ws,
         this.title,
         this.status,
         this.priority,
         this.due
       );
+      if (this.notes.trim()) await this.app.vault.process(file, (c) => writeNoteSection(c, this.notes));
       new Notice(`Project created: ${this.title}`);
     } else if (this.file) {
       await updateFrontmatterFields(this.app, this.file, {
@@ -226,6 +246,9 @@ export class ProjectModal extends Modal {
         due: this.due,
       });
       await renameHeading(this.app, this.file, this.originalTitle, this.title);
+      if (this.notes !== this.originalNotes) {
+        await this.app.vault.process(this.file, (c) => writeNoteSection(c, this.notes));
+      }
       new Notice(`Project saved: ${this.title}`);
       await this.plugin.syncArchiveFor(this.ws, this.file);
     }
@@ -234,6 +257,7 @@ export class ProjectModal extends Modal {
   }
 
   onClose(): void {
+    this.notesEditor?.unload();
     this.contentEl.empty();
   }
 }

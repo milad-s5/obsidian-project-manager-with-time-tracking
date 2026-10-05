@@ -58,6 +58,60 @@ export function readBodyNotes(content: string): NoteInfo {
   return { hasNotes: true, excerpt };
 }
 
+/**
+ * Where the note a dialog edits lives: the lines after the H1 title, up to the
+ * Time Log heading or the end of the file. That is where notes get written by
+ * hand anyway, so whatever is already there shows up in the dialog, and the
+ * frontmatter, title and time table are never part of what gets rewritten.
+ */
+function noteRegion(lines: string[]): { start: number; end: number } {
+  let start = 0;
+  if (lines[0]?.trim() === "---") {
+    const close = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
+    if (close !== -1) start = close + 1;
+  }
+  const title = lines.findIndex((l, i) => i >= start && /^#\s+/.test(l));
+  if (title !== -1) start = title + 1;
+
+  let end = lines.findIndex((l, i) => i >= start && /^#{1,6}\s+time log\s*$/i.test(l.trim()));
+  if (end === -1) end = lines.length;
+  return { start, end };
+}
+
+/** Blank lines at either edge are spacing around the note, not part of it */
+function trimBlankLines(lines: string[]): string[] {
+  let a = 0;
+  let b = lines.length;
+  while (a < b && !lines[a].trim()) a++;
+  while (b > a && !lines[b - 1].trim()) b--;
+  return lines.slice(a, b);
+}
+
+export function readNoteSection(content: string): string {
+  const lines = content.split(/\r?\n/);
+  const { start, end } = noteRegion(lines);
+  return trimBlankLines(lines.slice(start, end)).join("\n");
+}
+
+/** Replaces only the note region, keeping the file's own line endings */
+export function writeNoteSection(content: string, notes: string): string {
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const lines = content.split(/\r?\n/);
+  const { start, end } = noteRegion(lines);
+
+  const head = trimBlankLines(lines.slice(0, start));
+  const tail = trimBlankLines(lines.slice(end));
+  const body = trimBlankLines(notes.split(/\r?\n/));
+
+  const out = [...head];
+  for (const part of [body, tail]) {
+    if (!part.length) continue;
+    if (out.length) out.push("");
+    out.push(...part);
+  }
+  return out.join(eol) + eol;
+}
+
 /** Reading a file is expensive, so results are cached on mtime */
 export class NoteScanner {
   private cache = new Map<string, { mtime: number; info: NoteInfo }>();

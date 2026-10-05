@@ -10,6 +10,8 @@ import { ConfirmModal } from "./ConfirmModal";
 import { ProjectSuggest } from "./ProjectSuggest";
 import { deleteNote, deleteWarning } from "../utils/FileOps";
 import { isUnderAnyFolder, timeEntryFolders } from "../utils/WorkspacePaths";
+import { readNoteSection, writeNoteSection } from "../utils/NoteContent";
+import { mountNotesEditor, NotesEditor } from "./NotesEditor";
 
 export class TaskModal extends Modal {
   // Projects not yet closed — only these can be picked for a task
@@ -34,6 +36,10 @@ export class TaskModal extends Modal {
   due = "";
   manualHours = "";
   manualDate = "";
+  notes = "";
+  /** The note as read from the file, so Save only rewrites it when it changed */
+  private originalNotes = "";
+  private notesEditor: NotesEditor | null = null;
 
   constructor(
     app: App,
@@ -88,17 +94,21 @@ export class TaskModal extends Modal {
     return out.sort((a, b) => a.title.localeCompare(b.title));
   }
 
-  onOpen(): void {
+  async onOpen(): Promise<void> {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("pm-modal");
+    if (this.file) {
+      this.notes = this.originalNotes = readNoteSection(await this.app.vault.read(this.file));
+    }
 
     // Enter does what the nearest primary button does: inside the manual-time
     // fields that is Add Entry, otherwise Create/Save
     contentEl.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Enter" || e.isComposing) return;
       const target = e.target as HTMLElement;
-      if (target.tagName === "TEXTAREA") return;
+      // A new line in the note, not a submit
+      if (target.tagName === "TEXTAREA" || target.isContentEditable) return;
       e.preventDefault();
       if (target.closest(".pm-manual-entry")) {
         contentEl.querySelector<HTMLButtonElement>(".pm-manual-entry .pm-btn-secondary")?.click();
@@ -156,6 +166,14 @@ export class TaskModal extends Modal {
       cal: this.plugin.calendar,
       value: this.due,
       onChange: (v) => (this.due = v),
+    });
+
+    this.notesEditor = mountNotesEditor(contentEl, {
+      app: this.app,
+      file: this.file,
+      value: this.notes,
+      onChange: (v) => (this.notes = v),
+      onOpenLink: () => this.close(),
     });
 
     // Time tracking section
@@ -361,7 +379,7 @@ export class TaskModal extends Modal {
 
   async save(): Promise<void> {
     if (this.isNew) {
-      await this.plugin.taskManager.createTask(
+      const file = await this.plugin.taskManager.createTask(
         this.ws,
         this.title,
         this.projectSlug,
@@ -369,6 +387,7 @@ export class TaskModal extends Modal {
         this.priority,
         this.due
       );
+      if (this.notes.trim()) await this.app.vault.process(file, (c) => writeNoteSection(c, this.notes));
       new Notice(`Task created: ${this.title}`);
     } else if (this.file) {
       await updateFrontmatterFields(this.app, this.file, {
@@ -379,6 +398,9 @@ export class TaskModal extends Modal {
         due: this.due,
       });
       await renameHeading(this.app, this.file, this.originalTitle, this.title);
+      if (this.notes !== this.originalNotes) {
+        await this.app.vault.process(this.file, (c) => writeNoteSection(c, this.notes));
+      }
       new Notice(`Task saved: ${this.title}`);
       await this.plugin.syncArchiveFor(this.ws, this.file);
     }
@@ -387,6 +409,7 @@ export class TaskModal extends Modal {
 
   onClose(): void {
     if (this.timerInterval !== null) clearInterval(this.timerInterval);
+    this.notesEditor?.unload();
     this.contentEl.empty();
   }
 }
