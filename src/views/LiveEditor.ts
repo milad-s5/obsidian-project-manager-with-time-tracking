@@ -7,8 +7,9 @@
 // ║  to a plain textarea instead of breaking the dialog.                 ║
 // ╚══════════════════════════════════════════════════════════════════════╝
 
-import { App, TFile } from "obsidian";
+import { App, MarkdownFileInfo, TFile } from "obsidian";
 import { placeholder } from "@codemirror/view";
+import type { EditorView, ViewUpdate } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
 export interface LiveEditor {
@@ -24,14 +25,42 @@ export interface LiveEditorOptions {
   onChange: (value: string) => void;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- internal API, untyped by nature */
+/** The parts of Obsidian's internal editor this file touches */
+interface InternalEditor {
+  owner: { editMode: unknown; editor: unknown; file: TFile | null };
+  editor: { cm: EditorView; focus: () => void };
+  editorEl?: HTMLElement;
+  _loaded?: boolean;
+  set(value: string, clear: boolean): void;
+  onUpdate(update: ViewUpdate, changed: boolean): void;
+  buildLocalExtensions(): Extension[];
+  unload(): void;
+  destroy?(): void;
+}
 
-let editorClass: any = null;
+type InternalEditorClass = new (app: App, parent: HTMLElement, owner: object) => InternalEditor;
+
+interface InternalEmbed {
+  editable: boolean;
+  editMode: object;
+  showEditor(): void;
+  unload(): void;
+}
+
+interface AppWithEmbeds {
+  embedRegistry: {
+    embedByExtension: {
+      md: (ctx: { app: App; containerEl: HTMLElement }, file: TFile | null, subpath: string) => InternalEmbed;
+    };
+  };
+}
+
+let editorClass: InternalEditorClass | null = null;
 
 /** Builds a throwaway embed once and keeps the editor class it is made of */
-function resolveEditorClass(app: App): any {
+function resolveEditorClass(app: App): InternalEditorClass {
   if (editorClass) return editorClass;
-  const embed = (app as any).embedRegistry.embedByExtension.md(
+  const embed = (app as unknown as AppWithEmbeds).embedRegistry.embedByExtension.md(
     { app, containerEl: createDiv() },
     null,
     ""
@@ -40,7 +69,7 @@ function resolveEditorClass(app: App): any {
   embed.showEditor();
   const proto = Object.getPrototypeOf(Object.getPrototypeOf(embed.editMode));
   embed.unload();
-  editorClass = proto.constructor;
+  editorClass = (proto as { constructor: InternalEditorClass }).constructor;
   return editorClass;
 }
 
@@ -55,20 +84,19 @@ export function createLiveEditor(app: App, parent: HTMLElement, o: LiveEditorOpt
           onMarkdownScroll: () => {},
           getMode: () => "source",
         });
-        const self = this as any;
-        self.owner.editMode = this;
-        self.owner.editor = self.editor;
-        self.owner.file = o.file;
-        self.set(o.value, false);
+        this.owner.editMode = this;
+        this.owner.editor = this.editor;
+        this.owner.file = o.file;
+        this.set(o.value, false);
         // Commands such as "toggle checkbox" act on the focused editor
-        self.editor.cm.contentDOM.addEventListener("focusin", () => {
-          (app.workspace as any).activeEditor = self.owner;
+        this.editor.cm.contentDOM.addEventListener("focusin", () => {
+          app.workspace.activeEditor = this.owner as unknown as MarkdownFileInfo;
         });
       }
 
-      onUpdate(update: any, changed: boolean): void {
+      onUpdate(update: ViewUpdate, changed: boolean): void {
         super.onUpdate(update, changed);
-        if (changed) o.onChange((this as any).editor.cm.state.doc.toString());
+        if (changed) o.onChange(this.editor.cm.state.doc.toString());
       }
 
       buildLocalExtensions(): Extension[] {
@@ -78,12 +106,13 @@ export function createLiveEditor(app: App, parent: HTMLElement, o: LiveEditorOpt
       }
     }
 
-    const editor = new Embedded() as any;
+    const editor = new Embedded();
     editor.editorEl?.addClass("pm-live-editor");
     return {
       focus: () => editor.editor.focus(),
       destroy: () => {
-        if ((app.workspace as any).activeEditor === editor.owner) (app.workspace as any).activeEditor = null;
+        const owner = editor.owner as unknown as MarkdownFileInfo;
+        if (app.workspace.activeEditor === owner) app.workspace.activeEditor = null;
         if (editor._loaded) editor.unload();
         editor.destroy?.();
       },
