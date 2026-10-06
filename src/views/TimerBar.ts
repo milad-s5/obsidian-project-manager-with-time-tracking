@@ -89,8 +89,8 @@ export function renderTimerBar(
       const hours = await tracker.stopTimer(ws);
       new Notice(`Stopped. Logged ${hours}h`);
       onChange();
-    } catch (err: any) {
-      new Notice(err.message);
+    } catch (err) {
+      new Notice(err instanceof Error ? err.message : String(err));
     }
   });
 }

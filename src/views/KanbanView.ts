@@ -343,8 +343,8 @@ export class KanbanView extends ItemView {
             this.plugin.timeTracker.startTimer(file.path, fm.title ?? file.basename, this.currentWorkspace.id);
             new Notice(`Timer started: ${fm.title}`);
             await this.render();
-          } catch (err: any) {
-            new Notice(err.message);
+          } catch (err) {
+            new Notice(err instanceof Error ? err.message : String(err));
           }
         })
       );
@@ -370,8 +370,8 @@ export class KanbanView extends ItemView {
               const hours = await this.plugin.timeTracker.stopTimer(this.currentWorkspace);
               new Notice(`Stopped. Logged ${hours}h`);
               await this.render();
-            } catch (err: any) {
-              new Notice(err.message);
+            } catch (err) {
+              new Notice(err instanceof Error ? err.message : String(err));
             }
           })
         );

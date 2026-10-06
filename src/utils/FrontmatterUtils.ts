@@ -1,15 +1,10 @@
 import { App, TFile } from "obsidian";
 
-export async function getFrontmatter(app: App, file: TFile): Promise<Record<string, any>> {
-  const cache = app.metadataCache.getFileCache(file);
-  return cache?.frontmatter ?? {};
-}
-
 export async function updateFrontmatterField(
   app: App,
   file: TFile,
   key: string,
-  value: any
+  value: unknown
 ): Promise<void> {
   await app.fileManager.processFrontMatter(file, (fm) => {
     fm[key] = value;
@@ -19,7 +14,7 @@ export async function updateFrontmatterField(
 export async function updateFrontmatterFields(
   app: App,
   file: TFile,
-  fields: Record<string, any>
+  fields: Record<string, unknown>
 ): Promise<void> {
   await app.fileManager.processFrontMatter(file, (fm) => {
     for (const [k, v] of Object.entries(fields)) {

@@ -229,8 +229,8 @@ export class TaskModal extends Modal {
             this.close();
             // Refresh kanban if open
             this.plugin.refreshTimerViews();
-          } catch (err: any) {
-            new Notice(err.message);
+          } catch (err) {
+            new Notice(err instanceof Error ? err.message : String(err));
           }
         });
       } else {
@@ -244,8 +244,8 @@ export class TaskModal extends Modal {
             new Notice(`Timer started: ${this.title}`);
             this.close();
             this.plugin.refreshTimerViews();
-          } catch (err: any) {
-            new Notice(err.message);
+          } catch (err) {
+            new Notice(err instanceof Error ? err.message : String(err));
           }
         });
       }

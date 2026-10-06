@@ -125,8 +125,8 @@ export default class ProjectManagerPlugin extends Plugin {
           this.timeTracker.startTimer(file.path, fm.title ?? file.basename, fm.workspace ?? this.settings.defaultWorkspaceId);
           new Notice(`Timer started: ${fm.title}`);
           this.refreshTimerViews();
-        } catch (err: any) {
-          new Notice(err.message);
+        } catch (err) {
+          new Notice(err instanceof Error ? err.message : String(err));
         }
       },
     });
