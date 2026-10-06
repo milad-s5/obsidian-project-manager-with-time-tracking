@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+### Fixed
+- Code cleanup so the plugin passes the Obsidian community directory review again. No change in behavior.
+
 ## 1.3.0
 
 ### New
