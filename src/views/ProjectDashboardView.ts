@@ -504,6 +504,14 @@ export class ProjectDashboardView extends ItemView {
       sub: `${data.tasks.filter((t) => isDoneStatus(t.status)).length} done of ${data.tasks.length}`
         + (backlogCount ? ` · ${backlogCount} in backlog` : ""),
     });
+    const finished = data.tasks.filter((t) => t.completed && t.completed >= b.from && t.completed <= b.effTo);
+    const finishedBefore = data.tasks.filter((t) => t.completed && t.completed >= b.prevFrom && t.completed <= b.prevTo).length;
+    statTile(tiles, {
+      label: "Done",
+      value: String(finished.length),
+      unit: finished.length === 1 ? "task" : "tasks",
+      sub: `finished · ${finishedBefore} the period before`,
+    });
     statTile(tiles, {
       label: "Overdue",
       value: String(overdue.length),
@@ -516,6 +524,7 @@ export class ProjectDashboardView extends ItemView {
     this.renderHoursChart(cards, b, inRange, days, perDay);
     this.renderProjectHoursChart(cards, data, inRange);
     this.renderTaskHoursChart(cards, data, inRange, b);
+    this.renderDoneCard(cards, data, finished, b);
     this.renderStatusChart(cards, data);
     this.renderPriorityChart(cards, openTasks);
     this.renderAttentionCard(cards, data, openTasks, today);
@@ -744,6 +753,31 @@ export class ProjectDashboardView extends ItemView {
     card.setTable(
       ["Task", "Due", this.labelColumn("Due"), "Priority", "Status"],
       dated.map((t) => [t.title, t.due, this.plugin.calendar.label(t.due), t.priority, t.status])
+    );
+  }
+
+  /** What was finished in the period, whether or not any time was logged on it */
+  private renderDoneCard(parent: HTMLElement, data: AnalyticsData, finished: TaskInfo[], b: RangeBounds): void {
+    const card = chartCard(parent, "Done", `Tasks finished in ${b.label}`);
+    if (!finished.length) {
+      card.body.createDiv({ cls: "pm-db-empty", text: "No tasks finished in this period." });
+      return;
+    }
+    const sorted = [...finished].sort((x, y) => (x.completed < y.completed ? 1 : x.completed > y.completed ? -1 : 0));
+    const list = card.body.createDiv({ cls: "pm-db-list" });
+    for (const task of sorted.slice(0, 10)) {
+      this.renderListItem(list, {
+        color: statusColor(task.status),
+        title: task.title,
+        meta: `${this.plugin.calendar.label(task.completed)} · ${this.projectName(data, task.projectSlug)}`,
+        value: task.totalHours ? formatHours(task.totalHours) : "no time",
+        onClick: () => this.plugin.openTaskModal(task.file, this.currentWorkspace),
+      });
+    }
+    if (sorted.length > 10) list.createDiv({ cls: "pm-db-empty", text: `and ${sorted.length - 10} more — see the table` });
+    card.setTable(
+      ["Done", this.labelColumn("Done"), "Task", "Project", "Hours"],
+      sorted.map((t) => [t.completed, this.plugin.calendar.label(t.completed), t.title, this.projectName(data, t.projectSlug), formatHours(t.totalHours)])
     );
   }
 

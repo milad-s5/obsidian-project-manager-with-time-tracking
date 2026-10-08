@@ -38,6 +38,12 @@ export interface TaskInfo {
   created: string;
   totalHours: number;
   daysCount: number;
+  /**
+   * The day a done task was finished (its `end`), empty for any other. Tasks
+   * closed before the date was written get their last logged day, or failing that
+   * the day the note was last changed.
+   */
+  completed: string;
 }
 
 export interface ProjectInfo {
@@ -112,6 +118,13 @@ export class AnalyticsManager {
 
     records.sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0));
 
+    const lastLogged = new Map<string, string>();
+    for (const rec of records) lastLogged.set(rec.taskSlug, rec.iso);
+    for (const task of tasks) {
+      if (!isDoneStatus(task.status)) task.completed = "";
+      else if (!task.completed) task.completed = lastLogged.get(task.slug) ?? toISODate(new Date(task.file.stat.mtime));
+    }
+
     const byDay = new Map<string, TimeRecord[]>();
     for (const rec of records) {
       const list = byDay.get(rec.iso);
@@ -152,6 +165,7 @@ export class AnalyticsManager {
         created: String(fm.created ?? ""),
         totalHours: Number(fm.total_hours ?? 0) || 0,
         daysCount: Number(fm.days_count ?? 0) || 0,
+        completed: /^\d{4}-\d{2}-\d{2}/.test(String(fm.end ?? "")) ? String(fm.end).slice(0, 10) : "",
       });
     }
     return out;

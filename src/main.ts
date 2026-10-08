@@ -15,6 +15,7 @@ import { ProjectStatsSync } from "./managers/ProjectStatsSync";
 import { rebuildTotals } from "./managers/TotalsRebuilder";
 import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
 import { setupStatusBarTimer } from "./features/statusBarTimer";
+import { setupCompletedDate } from "./features/completedDate";
 import { setupPomodoro } from "./features/pomodoro";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
@@ -263,6 +264,7 @@ export default class ProjectManagerPlugin extends Plugin {
     // Features — each lives in src/features and plugs itself in
     setupStatusBarTimer(this);
     setupPomodoro(this);
+    setupCompletedDate(this);
 
     // Ribbon icons for quick access
     this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());
