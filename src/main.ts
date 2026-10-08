@@ -500,11 +500,14 @@ export default class ProjectManagerPlugin extends Plugin {
   refreshKanban(): void {
     const leaves = this.app.workspace.getLeavesOfType(KANBAN_VIEW_TYPE);
     for (const leaf of leaves) {
-      const view = leaf.view as KanbanView;
+      // A board in a tab not opened since Obsidian started is only a
+      // placeholder until it is shown, and draws itself fresh then
+      const view = leaf.view;
+      if (!(view instanceof KanbanView)) continue;
       // Kept in step with the one workspace both boards agree on, not just
       // whichever one this leaf last had picked.
       view.currentWorkspace = this.getCurrentWorkspace();
-      view.render();
+      void view.render();
     }
   }
 
@@ -604,9 +607,10 @@ export default class ProjectManagerPlugin extends Plugin {
   refreshProjectDashboard(): void {
     const leaves = this.app.workspace.getLeavesOfType(PROJECT_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
-      const view = leaf.view as ProjectDashboardView;
+      const view = leaf.view;
+      if (!(view instanceof ProjectDashboardView)) continue;
       view.currentWorkspace = this.getCurrentWorkspace();
-      view.render();
+      void view.render();
     }
   }
 
