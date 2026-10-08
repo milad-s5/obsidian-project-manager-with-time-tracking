@@ -397,6 +397,24 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* The pin shows on hover, and stays once a project is pinned */
+.pm-group-pin {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.pm-group-pin svg { width: 12px; height: 12px; }
+.pm-group-head:hover .pm-group-pin,
+.pm-group-pin:focus-visible { opacity: 1; }
+.pm-group-pin:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.pm-group-pin.is-pinned { opacity: 1; color: var(--interactive-accent); }
+.pm-group-pin.is-pinned svg { fill: currentColor; }
 .pm-group, .pm-group-cards { display: flex; flex-direction: column; gap: 8px; }
 .pm-group + .pm-group { padding-top: 6px; border-top: 1px dashed var(--background-modifier-border); }
 .pm-group.is-collapsed .pm-group-cards { display: none; }
@@ -489,6 +507,30 @@
   background: var(--background-primary);
   border-top: 1px dashed var(--background-modifier-border);
 }
+/* The names column's edge: drag it wider or narrower */
+.pm-lane-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  inset-inline-end: -8px;
+  width: 9px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.pm-lane-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.pm-lane-resize:hover::after,
+.pm-lanes.is-resizing .pm-lane-resize::after { background: var(--interactive-accent); }
+.pm-lanes.is-resizing { cursor: col-resize; user-select: none; }
 .pm-lane-label .pm-group-head { flex-wrap: wrap; align-items: center; row-gap: 2px; }
 .pm-lane-label .pm-group-title { white-space: normal; overflow-wrap: anywhere; flex: 1 1 90px; }
 .pm-lane-label .pm-group-hours { flex-basis: 100%; margin-inline-start: 19px; }

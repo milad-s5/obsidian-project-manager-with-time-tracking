@@ -63,6 +63,7 @@ export interface ProjectOption {
   title: string;
   /** Normalised: trimmed and lower case */
   status: string;
+  priority: string;
 }
 
 /**
@@ -82,6 +83,7 @@ export function listProjectOptions(app: App, ws: Workspace): ProjectOption[] {
       slug: file.basename,
       title: String(fm.title ?? file.basename),
       status: String(fm.status ?? "").trim().toLowerCase(),
+      priority: String(fm.priority ?? "").trim().toLowerCase(),
     });
   }
   return out.sort((a, b) => a.title.localeCompare(b.title));

@@ -45,6 +45,12 @@ export interface ProjectManagerSettings {
   projectGrouping: ProjectGrouping;
   /** Folded project groups and rows, keyed "<workspace id>:<project slug>" */
   collapsedProjectGroups: string[];
+  /** Projects pinned to the top of the grouped board, keyed the same way */
+  pinnedProjects: string[];
+  /** The order of the other projects on the grouped board */
+  projectOrder: ProjectOrder;
+  /** Width in pixels of the project names beside the rows */
+  laneLabelWidth: number;
   /** See src/features/pomodoro.ts */
   pomodoro: PomodoroSettings;
   /**
@@ -56,6 +62,8 @@ export interface ProjectManagerSettings {
 }
 
 export type ProjectGrouping = "lanes" | "columns";
+export type ProjectOrder = "activity" | "priority" | "name" | "open";
+export const DEFAULT_LANE_LABEL_WIDTH = 170;
 
 /**
  * "trash" hands the file to whatever Obsidian is set to do with deleted files,
@@ -89,6 +97,9 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   groupByProject: false,
   projectGrouping: "lanes",
   collapsedProjectGroups: [],
+  pinnedProjects: [],
+  projectOrder: "activity",
+  laneLabelWidth: DEFAULT_LANE_LABEL_WIDTH,
   pomodoro: { ...DEFAULT_POMODORO },
   backlogAdded: true,
 };

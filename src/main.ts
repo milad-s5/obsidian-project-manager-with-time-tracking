@@ -351,6 +351,23 @@ export default class ProjectManagerPlugin extends Plugin {
     await this.savePluginData();
   }
 
+  isProjectPinned(ws: Workspace, slug: string): boolean {
+    return this.settings.pinnedProjects.includes(`${ws.id}:${slug}`);
+  }
+
+  async toggleProjectPinned(ws: Workspace, slug: string): Promise<void> {
+    const key = `${ws.id}:${slug}`;
+    const list = this.settings.pinnedProjects;
+    this.settings.pinnedProjects = list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
+    await this.savePluginData();
+    this.refreshKanban();
+  }
+
+  async setLaneLabelWidth(width: number): Promise<void> {
+    this.settings.laneLabelWidth = width;
+    await this.savePluginData();
+  }
+
   async toggleGroupByProject(): Promise<void> {
     this.settings.groupByProject = !this.settings.groupByProject;
     await this.savePluginData();

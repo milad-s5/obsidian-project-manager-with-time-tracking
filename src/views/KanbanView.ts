@@ -1,8 +1,8 @@
 import { ItemView, WorkspaceLeaf, TFile, Menu, Notice, setIcon } from "obsidian";
 import ProjectManagerPlugin from "../main";
-import { Workspace } from "../types";
+import { DEFAULT_LANE_LABEL_WIDTH, Workspace } from "../types";
 import { endDateFields, linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
-import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
+import { priorityColor, isBacklogStatus, isClosedStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
 import { renderBoardColumn, renderFullscreenButton, renderMoreMenu } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import {
@@ -12,12 +12,16 @@ import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
 import { todayISO } from "../utils/Jalali";
-import { groupByProject, ProjectGroup, renderGroupHeading } from "./ProjectGroups";
+import { groupByProject, ProjectFacts, ProjectGroup, projectRanking, renderGroupHeading } from "./ProjectGroups";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
 
 /** How many cards of a closed column are shown by default */
 const COLLAPSED_LIMIT = 8;
+
+/** Bounds of the names column beside the project rows */
+const MIN_LABEL_WIDTH = 110;
+const MAX_LABEL_WIDTH = 480;
 
 export class KanbanView extends ItemView {
   plugin: ProjectManagerPlugin;
@@ -139,14 +143,16 @@ export class KanbanView extends ItemView {
     const projectQuery = this.filterProject.toLowerCase();
     // Matched by title, since that is what the field shows and what the
     // suggester offers — the slug behind it is never shown to the user.
-    const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
+    const projectOptions = listProjectOptions(this.app, this.currentWorkspace);
+    const projectTitleBySlug = new Map(projectOptions.map((p) => [p.slug, p.title]));
     this.projectTitles = projectTitleBySlug;
 
     const columns = statuses.map((status) => ({ status, files: this.columnTasks(tasks, status, taskQuery, projectQuery, projectTitleBySlug) }));
     const slugOf = (f: TFile) => linkSlug(this.app.metadataCache.getFileCache(f)?.frontmatter?.project);
     const titleOf = (slug: string) => projectTitleBySlug.get(slug) ?? slug;
     // Rows run across every column, so they come from all the columns' tasks
-    const lanes = grouping === "lanes" ? groupByProject(columns.flatMap((c) => c.files), slugOf, titleOf) : [];
+    const rank = grouping ? this.projectRank(tasks, projectOptions) : new Map<string, number>();
+    const lanes = grouping === "lanes" ? groupByProject(columns.flatMap((c) => c.files), slugOf, titleOf, rank) : [];
     if (grouping === "lanes") this.renderLaneLabels(board, lanes, statuses);
 
     for (const [i, { status, files: colFiltered }] of columns.entries()) {
@@ -208,7 +214,7 @@ export class KanbanView extends ItemView {
       } else if (colFiltered.length === 0) {
         cards.createDiv({ cls: "pm-col-empty", text: "No tasks here" });
       } else if (grouping === "columns") {
-        this.renderColumnGroups(cards, visible, status, slugOf, titleOf);
+        this.renderColumnGroups(cards, visible, status, slugOf, titleOf, rank);
       } else {
         for (const task of visible) this.renderTaskCard(cards, task, status);
       }
@@ -253,9 +259,10 @@ export class KanbanView extends ItemView {
 
   /** Inside one column: each project's tasks together under a heading that folds */
   private renderColumnGroups(
-    cards: HTMLElement, files: TFile[], status: string, slugOf: (f: TFile) => string, titleOf: (slug: string) => string
+    cards: HTMLElement, files: TFile[], status: string, slugOf: (f: TFile) => string, titleOf: (slug: string) => string,
+    rank: Map<string, number>
   ): void {
-    for (const group of groupByProject(files, slugOf, titleOf)) {
+    for (const group of groupByProject(files, slugOf, titleOf, rank)) {
       const box = cards.createDiv({ cls: "pm-group" });
       const collapsed = this.plugin.isProjectGroupCollapsed(this.currentWorkspace, group.slug);
       box.toggleClass("is-collapsed", collapsed);
@@ -268,6 +275,7 @@ export class KanbanView extends ItemView {
           box.toggleClass("is-collapsed", c);
           void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, group.slug, c);
         },
+        ...this.pinOptions(group.slug),
       });
       const list = box.createDiv({ cls: "pm-group-cards" });
       for (const task of group.files) this.renderTaskCard(list, task, status);
@@ -278,11 +286,14 @@ export class KanbanView extends ItemView {
   private renderLaneLabels(board: HTMLElement, lanes: ProjectGroup[], statuses: string[]): void {
     board.addClass("pm-lanes");
     board.setCssStyles({
-      gridTemplateColumns: ["170px", ...statuses.map((st) => (this.plugin.isColumnCollapsed("tasks", st) ? "40px" : "260px"))].join(" "),
+      gridTemplateColumns: ["var(--pm-lane-label-w)", ...statuses.map((st) => (this.plugin.isColumnCollapsed("tasks", st) ? "40px" : "260px"))].join(" "),
       gridTemplateRows: `auto repeat(${Math.max(1, lanes.length)}, auto)`,
     });
+    board.setCssProps({ "--pm-lane-label-w": `${this.plugin.settings.laneLabelWidth}px` });
     const labels = board.createDiv({ cls: "pm-lane-labels" });
-    labels.createDiv({ cls: "pm-lane-corner" }).setCssStyles({ gridColumn: "1", gridRow: "1" });
+    const corner = labels.createDiv({ cls: "pm-lane-corner" });
+    corner.setCssStyles({ gridColumn: "1", gridRow: "1" });
+    this.renderResizeHandle(board, corner);
     if (!lanes.length) labels.createDiv({ cls: "pm-lane-label" }).setCssStyles({ gridColumn: "1", gridRow: "2" });
     for (const [k, lane] of lanes.entries()) {
       const collapsed = this.plugin.isProjectGroupCollapsed(this.currentWorkspace, lane.slug);
@@ -298,8 +309,90 @@ export class KanbanView extends ItemView {
           board.querySelectorAll(`[data-lane="${CSS.escape(lane.slug)}"]`).forEach((el) => el.toggleClass("is-collapsed", c));
           void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, lane.slug, c);
         },
+        ...this.pinOptions(lane.slug),
       });
+      this.renderResizeHandle(board, cell);
     }
+  }
+
+  /** A project's pin; the "No project" group has none */
+  private pinOptions(slug: string): { pinned?: boolean; onPin?: () => void } {
+    if (!slug) return {};
+    return {
+      pinned: this.plugin.isProjectPinned(this.currentWorkspace, slug),
+      onPin: () => void this.plugin.toggleProjectPinned(this.currentWorkspace, slug),
+    };
+  }
+
+  /**
+   * The edge of the names column, dragged to make it wider or narrower so
+   * long names fit on one line. Double-click puts it back.
+   */
+  private renderResizeHandle(board: HTMLElement, cell: HTMLElement): void {
+    const handle = cell.createDiv({ cls: "pm-lane-resize", attr: { "aria-label": "Drag to resize the names, double-click to reset" } });
+    const setWidth = (w: number) => board.setCssProps({ "--pm-lane-label-w": `${w}px` });
+    handle.addEventListener("click", (e) => e.stopPropagation());
+    handle.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      setWidth(DEFAULT_LANE_LABEL_WIDTH);
+      void this.plugin.setLaneLabelWidth(DEFAULT_LANE_LABEL_WIDTH);
+    });
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Dragging towards the board widens it, which is leftwards right to left
+      const rtl = board.closest("[dir]")?.getAttribute("dir") === "rtl";
+      const startX = e.clientX;
+      const startW = this.plugin.settings.laneLabelWidth;
+      let width = startW;
+      handle.setPointerCapture(e.pointerId);
+      board.addClass("is-resizing");
+      const move = (ev: PointerEvent) => {
+        const dx = rtl ? startX - ev.clientX : ev.clientX - startX;
+        width = Math.round(Math.min(MAX_LABEL_WIDTH, Math.max(MIN_LABEL_WIDTH, startW + dx)));
+        setWidth(width);
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        board.removeClass("is-resizing");
+        void this.plugin.setLaneLabelWidth(width);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    });
+  }
+
+  /** What each project is ordered by, from all of the workspace's tasks */
+  private projectRank(tasks: TFile[], options: { slug: string; title: string; priority: string }[]): Map<string, number> {
+    const bySlug = new Map(options.map((p) => [p.slug, p]));
+    const priorities = this.plugin.settings.priorities;
+    const level = (p: string | undefined) => {
+      const i = priorities.indexOf(p ?? "");
+      return i === -1 ? priorities.indexOf("medium") : i;
+    };
+    const facts = new Map<string, ProjectFacts>();
+    for (const task of tasks) {
+      const fm = this.app.metadataCache.getFileCache(task)?.frontmatter;
+      const slug = linkSlug(fm?.project);
+      let f = facts.get(slug);
+      if (!f) {
+        f = {
+          slug,
+          title: bySlug.get(slug)?.title ?? slug,
+          pinned: !!slug && this.plugin.isProjectPinned(this.currentWorkspace, slug),
+          lastActive: 0,
+          priority: level(bySlug.get(slug)?.priority),
+          open: 0,
+        };
+        facts.set(slug, f);
+      }
+      f.lastActive = Math.max(f.lastActive, task.stat.mtime);
+      if (!isClosedStatus(fm?.status)) f.open++;
+    }
+    return projectRanking([...facts.values()], this.plugin.settings.projectOrder);
   }
 
   /** One column's cell in every row; a folded row keeps only how many it holds */

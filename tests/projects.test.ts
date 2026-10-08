@@ -25,7 +25,7 @@ test("archived projects are still listed, with their status", async () => {
   await s.archive.syncProject(s.ws, p as never);
   await settle();
   assert.match(p.path, /Archive\/Projects/);
-  assert.deepEqual(listProjectOptions(s.app as never, s.ws), [{ slug: "launch", title: "Launch", status: "done" }]);
+  assert.deepEqual(listProjectOptions(s.app as never, s.ws), [{ slug: "launch", title: "Launch", status: "done", priority: "medium" }]);
 });
 
 test("a new task never shares its note name with an archived one", async () => {

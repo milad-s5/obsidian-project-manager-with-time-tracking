@@ -1,6 +1,6 @@
 import { App, Notice, normalizePath, PluginSettingTab, Setting, TextComponent } from "obsidian";
 import ProjectManagerPlugin from "./main";
-import { DeleteBehaviour } from "./types";
+import { DeleteBehaviour, ProjectOrder } from "./types";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { CalendarKind, WeekStart } from "./utils/Calendar";
 import { RenameStatusModal } from "./views/RenameStatusModal";
@@ -95,6 +95,22 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
         drop.setValue(this.plugin.settings.projectGrouping);
         drop.onChange(async (value) => {
           this.plugin.settings.projectGrouping = value === "columns" ? "columns" : "lanes";
+          await this.plugin.saveSettings();
+          this.plugin.refreshTimerViews();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Order of projects")
+      .setDesc("How the grouped board orders its projects. Pinned projects always come first.")
+      .addDropdown((drop) => {
+        drop.addOption("activity", "Most recently worked on");
+        drop.addOption("priority", "Project priority");
+        drop.addOption("open", "Most unfinished tasks");
+        drop.addOption("name", "Name");
+        drop.setValue(this.plugin.settings.projectOrder);
+        drop.onChange(async (value) => {
+          this.plugin.settings.projectOrder = value as ProjectOrder;
           await this.plugin.saveSettings();
           this.plugin.refreshTimerViews();
         });

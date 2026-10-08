@@ -1,6 +1,7 @@
 import { setIcon, TFile } from "obsidian";
 import { projectColor } from "../utils/StatusColors";
 import { formatHours } from "./DashboardCharts";
+import type { ProjectOrder } from "../types";
 
 /** The tasks of one project, as the Kanban groups them */
 export interface ProjectGroup {
@@ -10,14 +11,43 @@ export interface ProjectGroup {
   files: TFile[];
 }
 
+/** What a project is ordered by on the grouped board */
+export interface ProjectFacts {
+  /** "" for tasks with no project */
+  slug: string;
+  title: string;
+  pinned: boolean;
+  /** Last time one of its tasks changed, in ms */
+  lastActive: number;
+  /** Index in the priority list: higher is more urgent */
+  priority: number;
+  /** Tasks not yet closed */
+  open: number;
+}
+
 /**
- * Splits tasks by project, keeping the order they came in within each.
- * Projects run in title order; tasks with no project come last.
+ * The place of each project on the grouped board: pinned ones first, then
+ * the rest, each by the chosen order and then by name. Tasks with no
+ * project always come last. Worked out once for the whole board, so every
+ * column puts its groups in the same order.
  */
+export function projectRanking(facts: ProjectFacts[], order: ProjectOrder): Map<string, number> {
+  const key = (f: ProjectFacts): number =>
+    order === "activity" ? -f.lastActive : order === "priority" ? -f.priority : order === "open" ? -f.open : 0;
+  const sorted = [...facts].sort((a, b) => {
+    if (!a.slug !== !b.slug) return a.slug ? -1 : 1;
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return key(a) - key(b) || a.title.localeCompare(b.title);
+  });
+  return new Map(sorted.map((f, i) => [f.slug, i]));
+}
+
+/** Splits tasks by project, keeping the order they came in within each */
 export function groupByProject(
   files: TFile[],
   slugOf: (file: TFile) => string,
-  titleOf: (slug: string) => string
+  titleOf: (slug: string) => string,
+  rank: Map<string, number>
 ): ProjectGroup[] {
   const groups = new Map<string, ProjectGroup>();
   for (const file of files) {
@@ -29,10 +59,8 @@ export function groupByProject(
     }
     group.files.push(file);
   }
-  return [...groups.values()].sort((a, b) => {
-    if (!a.slug !== !b.slug) return a.slug ? -1 : 1;
-    return a.title.localeCompare(b.title);
-  });
+  const at = (g: ProjectGroup) => rank.get(g.slug) ?? Number.MAX_SAFE_INTEGER;
+  return [...groups.values()].sort((a, b) => at(a) - at(b) || a.title.localeCompare(b.title));
 }
 
 /**
@@ -41,13 +69,28 @@ export function groupByProject(
  */
 export function renderGroupHeading(
   parent: HTMLElement,
-  o: { group: ProjectGroup; count: number; hours: number; collapsed: boolean; onToggle: (collapsed: boolean) => void }
+  o: {
+    group: ProjectGroup; count: number; hours: number; collapsed: boolean; onToggle: (collapsed: boolean) => void;
+    /** Shows a pin, for a project rather than the "No project" group */
+    pinned?: boolean; onPin?: () => void;
+  }
 ): HTMLElement {
   const head = parent.createDiv({ cls: "pm-group-head", attr: { role: "button", tabindex: "0" } });
   head.setCssProps({ "--pm-project-color": projectColor(o.group.slug) });
   const arrow = head.createSpan({ cls: "pm-group-arrow" });
   head.createSpan({ cls: "pm-group-swatch" });
   head.createSpan({ cls: "pm-group-title", text: o.group.title });
+  if (o.onPin) {
+    const onPin = o.onPin;
+    const pin = head.createSpan({
+      cls: `pm-group-pin${o.pinned ? " is-pinned" : ""}`,
+      attr: { role: "button", tabindex: "0", "aria-label": o.pinned ? "Unpin" : "Pin to the top", "aria-pressed": String(!!o.pinned) },
+    });
+    setIcon(pin, "pin");
+    const press = (e: Event) => { e.stopPropagation(); e.preventDefault(); onPin(); };
+    pin.addEventListener("click", press);
+    pin.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") press(e); });
+  }
   head.createSpan({ cls: "pm-col-count", text: String(o.count) });
   head.createSpan({ cls: "pm-group-hours", text: formatHours(o.hours) });
 
