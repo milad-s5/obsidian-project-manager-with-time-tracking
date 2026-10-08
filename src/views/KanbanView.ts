@@ -5,7 +5,9 @@ import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
 import { renderBoardColumn } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
-import { isArchivedPath, listProjectOptions, matchProject } from "../utils/WorkspacePaths";
+import {
+  isArchivedPath, isUnderAnyFolder, listProjectOptions, matchProject, projectFolders, taskFolders,
+} from "../utils/WorkspacePaths";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
@@ -26,6 +28,7 @@ export class KanbanView extends ItemView {
   /** Closed columns the user expanded — has to survive the next render */
   private expandedCols: Set<string> = new Set();
   private refreshInterval: number | null = null;
+  private renderTimer: number | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ProjectManagerPlugin) {
     super(leaf);
@@ -49,17 +52,36 @@ export class KanbanView extends ItemView {
     // the file, before Obsidian has re-parsed the frontmatter, so rendering
     // then reads the *old* values. That is why an edit made outside the app —
     // a git discard, a pull — left the board showing the previous title.
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.render()));
-    this.registerEvent(this.app.metadataCache.on("resolved", () => this.render()));
-    this.registerEvent(this.app.vault.on("create", () => this.render()));
-    this.registerEvent(this.app.vault.on("delete", () => this.render()));
-    this.registerEvent(this.app.vault.on("rename", () => this.render()));
+    //
+    // Only changes inside this workspace's folders count, and a burst of them
+    // makes one redraw. Every edit anywhere in the vault used to redraw the
+    // whole board twice, which jumped it back to the top while you typed in
+    // a note next to it.
+    this.registerEvent(this.app.metadataCache.on("changed", (file) => this.onVaultChange(file.path)));
+    this.registerEvent(this.app.vault.on("create", (file) => this.onVaultChange(file.path)));
+    this.registerEvent(this.app.vault.on("delete", (file) => this.onVaultChange(file.path)));
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.onVaultChange(file.path, oldPath)));
   }
 
   async onClose(): Promise<void> {
     if (this.refreshInterval !== null) {
       clearInterval(this.refreshInterval);
     }
+    if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
+  }
+
+  private onVaultChange(...paths: string[]): void {
+    const ws = this.currentWorkspace;
+    const folders = [...taskFolders(ws), ...projectFolders(ws)];
+    if (paths.some((p) => isUnderAnyFolder(p, folders))) this.scheduleRender();
+  }
+
+  private scheduleRender(): void {
+    if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
+    this.renderTimer = window.setTimeout(() => {
+      this.renderTimer = null;
+      void this.render();
+    }, 250);
   }
 
   async render(): Promise<void> {
@@ -68,6 +90,16 @@ export class KanbanView extends ItemView {
     // was mid-typing — so its focus and cursor are captured here and put back
     // on the new element afterwards, rather than silently dropping the field.
     const focus = captureFocus(container);
+    // So is where the board was scrolled to, across and within each column
+    const scroll = {
+      top: container.scrollTop,
+      left: container.querySelector<HTMLElement>(".pm-kanban-board")?.scrollLeft ?? 0,
+      cols: new Map(
+        Array.from(container.querySelectorAll<HTMLElement>(".pm-col-cards")).map(
+          (el) => [el.getAttribute("data-status") ?? "", el.scrollTop] as const
+        )
+      ),
+    };
     container.empty();
     container.addClass("pm-kanban-container");
 
@@ -184,6 +216,11 @@ export class KanbanView extends ItemView {
       }
     }
 
+    board.scrollLeft = scroll.left;
+    container.scrollTop = scroll.top;
+    board.querySelectorAll<HTMLElement>(".pm-col-cards").forEach((el) => {
+      el.scrollTop = scroll.cols.get(el.getAttribute("data-status") ?? "") ?? 0;
+    });
     restoreFocus(container, focus);
   }
 
