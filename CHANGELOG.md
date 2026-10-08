@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3
+
+### Fixed
+- Saving a task or project said "Could not save … s.render is not a function" when a board was open in a tab not yet shown since Obsidian started. The note was saved; only the board refresh failed.
+- For the same reason, deleting or editing logged time removed the time entry but left the task dialog's list and total as they were.
+
 ## 1.5.2
 
 ### Fixed
