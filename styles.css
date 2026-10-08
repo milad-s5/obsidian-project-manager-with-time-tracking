@@ -1142,5 +1142,4 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
   .pm-card-meta > span, .pm-col-title, .pm-col-empty, .pm-col-quickadd, .pm-timer-task, .pm-col-more) {
   unicode-bidi: plaintext;
 }
-[dir="rtl"] .pm-toolbar input::placeholder,
-[dir="rtl"] .pm-col-quickadd::placeholder { unicode-bidi: plaintext; }
+[dir="rtl"] :is(.pm-toolbar input, .pm-col-quickadd)::placeholder { unicode-bidi: plaintext; }

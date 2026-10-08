@@ -166,6 +166,9 @@ export class ProjectDashboardView extends ItemView {
 
   private renderToolbar(container: HTMLElement): void {
     const toolbar = container.createDiv({ cls: "pm-toolbar" });
+    // Over the projects board the toolbar is part of the board, and runs the
+    // same way it does, as the Kanban board's toolbar does
+    if (this.tab === "projects") toolbar.setAttribute("dir", this.plugin.settings.boardDirection);
 
     // Three groups, each wrapping as a unit rather than shedding one button at
     // a time onto its own line: which workspace and period, how the list is
