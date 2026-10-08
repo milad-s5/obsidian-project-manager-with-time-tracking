@@ -73,13 +73,23 @@ export function renderGroupHeading(
     group: ProjectGroup; count: number; hours: number; collapsed: boolean; onToggle: (collapsed: boolean) => void;
     /** Shows a pin, for a project rather than the "No project" group */
     pinned?: boolean; onPin?: () => void;
+    /** Makes the name open the project */
+    onOpen?: () => void;
   }
 ): HTMLElement {
   const head = parent.createDiv({ cls: "pm-group-head", attr: { role: "button", tabindex: "0" } });
   head.setCssProps({ "--pm-project-color": projectColor(o.group.slug) });
   const arrow = head.createSpan({ cls: "pm-group-arrow" });
   head.createSpan({ cls: "pm-group-swatch" });
-  head.createSpan({ cls: "pm-group-title", text: o.group.title });
+  const title = head.createSpan({ cls: "pm-group-title", text: o.group.title });
+  if (o.onOpen) {
+    const onOpen = o.onOpen;
+    title.addClass("is-link");
+    title.setAttrs({ role: "link", tabindex: "0", "aria-label": `Open ${o.group.title}` });
+    const go = (e: Event) => { e.stopPropagation(); e.preventDefault(); onOpen(); };
+    title.addEventListener("click", go);
+    title.addEventListener("keydown", (e) => { if (e.key === "Enter") go(e); });
+  }
   if (o.onPin) {
     const onPin = o.onPin;
     const pin = head.createSpan({

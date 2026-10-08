@@ -390,6 +390,11 @@
   white-space: nowrap;
   unicode-bidi: plaintext;
 }
+.pm-group-title.is-link { cursor: pointer; }
+.pm-group-title.is-link:hover,
+.pm-group-title.is-link:focus-visible { color: var(--text-accent); text-decoration: underline; outline: none; }
+.pm-card-project { cursor: pointer; border-radius: 4px; }
+.pm-card-project:hover { color: var(--text-accent); text-decoration: underline; }
 .pm-group-hours {
   margin-inline-start: auto;
   font-weight: 500;

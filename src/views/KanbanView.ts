@@ -317,13 +317,24 @@ export class KanbanView extends ItemView {
     }
   }
 
-  /** A project's pin; the "No project" group has none */
-  private pinOptions(slug: string): { pinned?: boolean; onPin?: () => void } {
+  /** A project's pin and link; the "No project" group has neither */
+  private pinOptions(slug: string): { pinned?: boolean; onPin?: () => void; onOpen?: () => void } {
     if (!slug) return {};
     return {
       pinned: this.plugin.isProjectPinned(this.currentWorkspace, slug),
       onPin: () => void this.plugin.toggleProjectPinned(this.currentWorkspace, slug),
+      onOpen: () => this.openProject(slug),
     };
+  }
+
+  /** The project's own dialog, as clicking it on the projects board does */
+  private openProject(slug: string): void {
+    const file = this.app.metadataCache.getFirstLinkpathDest(slug, "");
+    if (!file || this.app.metadataCache.getFileCache(file)?.frontmatter?.type !== "project") {
+      new Notice(`Project "${slug}" not found`);
+      return;
+    }
+    this.plugin.openProjectModal(file, this.currentWorkspace);
   }
 
   /**
@@ -580,7 +591,12 @@ export class KanbanView extends ItemView {
     const showProject = !!fm.project && !this.grouped;
     if (showProject) {
       const slug = linkSlug(fm.project);
-      meta.createSpan({ text: `📁 ${this.projectTitles.get(slug) ?? slug}` });
+      const link = meta.createSpan({ cls: "pm-card-project", text: `📁 ${this.projectTitles.get(slug) ?? slug}` });
+      link.setAttr("aria-label", "Open the project");
+      link.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openProject(slug);
+      });
     }
     if (fm.due) {
       // The local date, as the dashboard uses; the UTC one made a task due
