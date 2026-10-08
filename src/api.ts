@@ -67,6 +67,27 @@ export function createApi(plugin: ProjectManagerPlugin): ProjectManagerApi {
 
   const ref = (file: TFile): PmFileRef => ({ slug: file.basename, path: file.path });
 
+  // Methods are plain closures rather than reaching each other through
+  // `this`, so a consumer can pass one around or destructure it:
+  // `const { ensureProject } = api` used to throw on its first call.
+  const listProjects = (workspaceId: string): PmProjectInfo[] => {
+    const ws = workspaceOrThrow(workspaceId);
+    const folders = projectFolders(ws);
+    const out: PmProjectInfo[] = [];
+    for (const file of plugin.app.vault.getMarkdownFiles()) {
+      if (!isUnderAnyFolder(file.path, folders)) continue;
+      const fm = plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+      if (fm?.type !== "project") continue;
+      out.push({
+        slug: file.basename,
+        title: String(fm.title ?? file.basename),
+        status: String(fm.status ?? ""),
+        path: file.path,
+      });
+    }
+    return out;
+  };
+
   return {
     version: PM_API_VERSION,
 
@@ -74,30 +95,14 @@ export function createApi(plugin: ProjectManagerPlugin): ProjectManagerApi {
       return plugin.settings.workspaces.map((ws) => ({ id: ws.id, name: ws.name }));
     },
 
-    listProjects(workspaceId) {
-      const ws = workspaceOrThrow(workspaceId);
-      const folders = projectFolders(ws);
-      const out: PmProjectInfo[] = [];
-      for (const file of plugin.app.vault.getMarkdownFiles()) {
-        if (!isUnderAnyFolder(file.path, folders)) continue;
-        const fm = plugin.app.metadataCache.getFileCache(file)?.frontmatter;
-        if (fm?.type !== "project") continue;
-        out.push({
-          slug: file.basename,
-          title: String(fm.title ?? file.basename),
-          status: String(fm.status ?? ""),
-          path: file.path,
-        });
-      }
-      return out;
-    },
+    listProjects,
 
     async ensureProject(workspaceId, input) {
       const ws = workspaceOrThrow(workspaceId);
       // By title first: a project's file name can carry a -2 when its title
       // clashed with another note, so the slug alone would miss it
       const slug = slugify(input.title);
-      const projects = this.listProjects(workspaceId);
+      const projects = listProjects(workspaceId);
       const existing = matchProject(input.title, projects) ?? projects.find((p) => p.slug === slug);
       if (existing) return { slug: existing.slug, path: existing.path };
 
