@@ -198,10 +198,7 @@ export class KanbanView extends ItemView {
         onAdd: () => {
           // Same as quick-add: take the board's filters, so the new task
           // lands where it can be seen
-          const query = this.filterProject.toLowerCase();
-          const project = query
-            ? listProjectOptions(this.app, this.currentWorkspace).find((p) => p.title.toLowerCase() === query)
-            : undefined;
+          const project = matchProject(this.filterProject, listProjectOptions(this.app, this.currentWorkspace));
           this.plugin.openNewTaskModal(this.currentWorkspace, {
             status,
             priority: this.filterPriority || undefined,
