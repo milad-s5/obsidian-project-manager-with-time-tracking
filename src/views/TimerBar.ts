@@ -3,6 +3,8 @@ import type ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { ConfirmModal } from "./ConfirmModal";
 import { StopResult } from "../managers/TimeTracker";
+import { TaskPickerModal } from "./TaskPickerModal";
+import { listProjectOptions } from "../utils/WorkspacePaths";
 
 /** Below this there is nothing to lose, so reset without asking */
 const RESET_CONFIRM_THRESHOLD_MS = 60_000;
@@ -84,17 +86,72 @@ export function renderTimerBar(
     resetTimerWithConfirm(plugin.app, plugin, onChange);
   });
 
+  if (tracker.hasNoTask()) {
+    bar.addClass("no-task");
+    bar.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Choose task…" })
+      .addEventListener("click", () => void chooseTimerTask(plugin, ws, onChange));
+  }
+
   const stopBtn = bar.createEl("button", { cls: "pm-btn pm-btn-danger", text: "⏹ Stop" });
   stopBtn.addEventListener("click", async () => {
     stopBtn.disabled = true;
+    await stopTimerAndLog(plugin, ws, onChange);
+    stopBtn.disabled = false;
+  });
+}
+
+/**
+ * Asks which task the running timer is for, an existing one or a new one
+ * by the title typed, and gives the timer that task. Dismissing it changes
+ * nothing: the timer keeps running.
+ */
+export async function chooseTimerTask(
+  plugin: ProjectManagerPlugin,
+  fallback: Workspace,
+  then?: () => void | Promise<void>
+): Promise<void> {
+  const tracker = plugin.timeTracker;
+  const timer = tracker.getActiveTimer();
+  if (!timer) return;
+  const ws = plugin.findWorkspace(timer.workspaceId) ?? fallback;
+  const tasks = await plugin.taskManager.getTasks(ws);
+  const titles = new Map(listProjectOptions(plugin.app, ws).map((p) => [p.slug, p.title]));
+  new TaskPickerModal(plugin.app, tasks, (slug) => titles.get(slug) ?? slug, async (choice) => {
+    if (!tracker.isRunning()) return;
     try {
-      showStopNotice(await tracker.stopTimer(ws));
-      onChange();
+      if ("create" in choice) {
+        const file = await plugin.taskManager.createTask(ws, choice.create, "", "active", "medium", "");
+        tracker.assign(file.path, choice.create);
+      } else {
+        tracker.assign(choice.file.path, choice.title);
+      }
     } catch (err) {
       new Notice(err instanceof Error ? err.message : String(err));
-      stopBtn.disabled = false;
+      return;
     }
-  });
+    plugin.refreshTimerViews();
+    await then?.();
+  }).open();
+}
+
+/** Stop: logs the time, first asking which task it was for when the timer has none */
+export async function stopTimerAndLog(
+  plugin: ProjectManagerPlugin,
+  ws: Workspace,
+  onDone: () => void = () => {}
+): Promise<void> {
+  const tracker = plugin.timeTracker;
+  const stop = async () => {
+    try {
+      showStopNotice(await tracker.stopTimer(ws));
+    } catch (err) {
+      new Notice(err instanceof Error ? err.message : String(err));
+    }
+    plugin.refreshTimerViews();
+    onDone();
+  };
+  if (tracker.hasNoTask()) await chooseTimerTask(plugin, ws, stop);
+  else await stop();
 }
 
 /** Says what a stop logged — differently when the task note itself was gone */

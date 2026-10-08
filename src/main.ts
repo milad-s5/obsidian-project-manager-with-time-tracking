@@ -23,7 +23,7 @@ import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
 import { linkSlug } from "./utils/FrontmatterUtils";
 import { NoteScanner } from "./utils/NoteContent";
-import { resetTimerWithConfirm, showStopNotice } from "./views/TimerBar";
+import { chooseTimerTask, resetTimerWithConfirm, stopTimerAndLog } from "./views/TimerBar";
 import { BoardKind } from "./views/BoardColumn";
 import { BACKLOG_STATUS, DEFAULT_CLOSED_STATUSES, isBacklogStatus, setClosedStatuses } from "./utils/StatusColors";
 
@@ -218,6 +218,27 @@ export default class ProjectManagerPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "start-timer-no-task",
+      name: "Start a timer without a task",
+      callback: () => {
+        if (this.timeTracker.isRunning()) { new Notice(`Timer already running: ${this.timeTracker.getActiveTimer()?.taskTitle}`); return; }
+        this.timeTracker.startWithoutTask(this.getCurrentWorkspace().id);
+        new Notice("Timer started — choose its task now or when you stop");
+        this.refreshTimerViews();
+      },
+    });
+
+    this.addCommand({
+      id: "choose-timer-task",
+      name: "Choose the task for the running timer",
+      checkCallback: (checking) => {
+        if (!this.timeTracker.isRunning()) return false;
+        if (!checking) void chooseTimerTask(this, this.getCurrentWorkspace());
+        return true;
+      },
+    });
+
+    this.addCommand({
       id: "pause-timer",
       name: "Pause or resume the timer",
       callback: () => {
@@ -237,9 +258,7 @@ export default class ProjectManagerPlugin extends Plugin {
       name: "Stop the timer",
       callback: async () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
-        const ws = this.getCurrentWorkspace();
-        showStopNotice(await this.timeTracker.stopTimer(ws));
-        this.refreshTimerViews();
+        await stopTimerAndLog(this, this.getCurrentWorkspace());
       },
     });
 

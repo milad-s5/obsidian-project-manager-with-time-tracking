@@ -7,7 +7,7 @@
 
 import { Menu, Notice, TFile } from "obsidian";
 import type ProjectManagerPlugin from "../main";
-import { resetTimerWithConfirm, showStopNotice } from "../views/TimerBar";
+import { chooseTimerTask, resetTimerWithConfirm, stopTimerAndLog } from "../views/TimerBar";
 
 export function setupStatusBarTimer(plugin: ProjectManagerPlugin): void {
   const item = plugin.addStatusBarItem();
@@ -16,8 +16,14 @@ export function setupStatusBarTimer(plugin: ProjectManagerPlugin): void {
 
   const paint = (): void => {
     const timer = tracker.getActiveTimer();
-    item.toggleClass("pm-hidden", !timer);
-    if (!timer) return;
+    item.toggleClass("is-idle", !timer);
+    item.toggleClass("is-no-task", tracker.hasNoTask());
+    if (!timer) {
+      // A small clock to start timing before choosing what for
+      item.setText("⏱");
+      item.setAttr("aria-label", "Start a timer without a task");
+      return;
+    }
     item.toggleClass("is-paused", tracker.isPaused());
     item.setText(`${tracker.isPaused() ? "⏸" : "⏱"} ${timer.taskTitle} — ${tracker.getElapsed()}`);
     item.setAttr("aria-label", tracker.isPaused() ? "Timer paused — click for options" : "Timer running — click for options");
@@ -25,8 +31,18 @@ export function setupStatusBarTimer(plugin: ProjectManagerPlugin): void {
 
   item.addEventListener("click", (e) => {
     const timer = tracker.getActiveTimer();
-    if (!timer) return;
+    if (!timer) {
+      tracker.startWithoutTask(plugin.getCurrentWorkspace().id);
+      new Notice("Timer started — choose its task now or when you stop");
+      plugin.refreshTimerViews();
+      return;
+    }
     const menu = new Menu();
+    if (tracker.hasNoTask()) {
+      menu.addItem((i) =>
+        i.setTitle("Choose task…").setIcon("list-checks").onClick(() => void chooseTimerTask(plugin, plugin.getCurrentWorkspace()))
+      );
+    }
     menu.addItem((i) =>
       i.setTitle(tracker.isPaused() ? "Resume" : "Pause").setIcon(tracker.isPaused() ? "play" : "pause").onClick(() => {
         tracker.togglePause();
@@ -34,27 +50,30 @@ export function setupStatusBarTimer(plugin: ProjectManagerPlugin): void {
       })
     );
     menu.addItem((i) =>
-      i.setTitle("Stop and log").setIcon("square").onClick(async () => {
-        try {
-          showStopNotice(await tracker.stopTimer(plugin.getCurrentWorkspace()));
-        } catch (err) {
-          new Notice(err instanceof Error ? err.message : String(err));
-        }
-        plugin.refreshTimerViews();
-      })
+      i.setTitle("Stop and log").setIcon("square").onClick(() => void stopTimerAndLog(plugin, plugin.getCurrentWorkspace()))
     );
     menu.addItem((i) =>
       i.setTitle("Reset to zero").setIcon("rotate-ccw").onClick(() => {
         resetTimerWithConfirm(plugin.app, plugin, () => plugin.refreshTimerViews());
       })
     );
-    menu.addSeparator();
-    menu.addItem((i) =>
-      i.setTitle("Open task").setIcon("file-text").onClick(() => {
-        const file = plugin.app.vault.getAbstractFileByPath(timer.taskPath);
-        if (file instanceof TFile) plugin.openTaskModal(file, plugin.workspaceOfFile(file) ?? plugin.getCurrentWorkspace());
-      })
-    );
+    if (tracker.hasNoTask()) {
+      menu.addItem((i) =>
+        i.setTitle("Discard").setIcon("trash-2").onClick(() => {
+          tracker.discard();
+          new Notice("Timer discarded");
+          plugin.refreshTimerViews();
+        })
+      );
+    } else {
+      menu.addSeparator();
+      menu.addItem((i) =>
+        i.setTitle("Open task").setIcon("file-text").onClick(() => {
+          const file = plugin.app.vault.getAbstractFileByPath(timer.taskPath);
+          if (file instanceof TFile) plugin.openTaskModal(file, plugin.workspaceOfFile(file) ?? plugin.getCurrentWorkspace());
+        })
+      );
+    }
     menu.showAtMouseEvent(e);
   });
 

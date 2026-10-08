@@ -1320,6 +1320,14 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 /* ===== Status bar timer ===== */
 .pm-statusbar-timer { font-variant-numeric: tabular-nums; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-statusbar-timer.is-paused { color: var(--text-muted); }
+.pm-statusbar-timer.is-idle { opacity: 0.55; }
+.pm-statusbar-timer.is-idle:hover { opacity: 1; }
+.pm-statusbar-timer.is-no-task { font-style: italic; }
+.pm-timer-bar.no-task .pm-timer-task { font-style: italic; opacity: 0.8; }
+
+/* Choosing the task for a timer started on none */
+.pm-task-pick-title { font-weight: 600; unicode-bidi: plaintext; }
+.pm-task-pick-meta { font-size: 11.5px; color: var(--text-muted); unicode-bidi: plaintext; }
 
 /* ===== Pomodoro ===== */
 .pm-statusbar-pomodoro { font-variant-numeric: tabular-nums; }

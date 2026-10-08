@@ -13,6 +13,9 @@ export interface StopResult {
   taskFound: boolean;
 }
 
+/** What a timer started on no task says, until one is chosen */
+export const NO_TASK_TITLE = "No task yet";
+
 export class TimeTracker {
   private activeTimer: ActiveTimer | null = null;
   /** Every state change has to reach disk, or it will not survive a crash */
@@ -38,7 +41,15 @@ export class TimeTracker {
 
   // ── Lifecycle ───────────────────────────────────────────────────────
 
+  /**
+   * Starts timing a task. A timer already running on no task is given this
+   * one instead, keeping the time it has counted.
+   */
   startTimer(taskPath: string, taskTitle: string, workspaceId: string): void {
+    if (this.activeTimer && !this.activeTimer.taskPath && taskPath) {
+      this.assign(taskPath, taskTitle);
+      return;
+    }
     if (this.activeTimer) {
       throw new Error(`Timer already running for: ${this.activeTimer.taskTitle}`);
     }
@@ -52,7 +63,27 @@ export class TimeTracker {
       accumulatedMs: 0,
     };
     this.persist();
+    if (taskPath) void this.promoteFromBacklog(taskPath);
+  }
+
+  /** Starts timing before knowing what for; the task is chosen later */
+  startWithoutTask(workspaceId: string): void {
+    this.startTimer("", NO_TASK_TITLE, workspaceId);
+  }
+
+  /** Gives the running timer its task, time counted so far included */
+  assign(taskPath: string, taskTitle: string): void {
+    const t = this.activeTimer;
+    if (!t) throw new Error("No active timer");
+    t.taskPath = taskPath;
+    t.taskTitle = taskTitle;
+    this.persist();
     void this.promoteFromBacklog(taskPath);
+  }
+
+  /** Running, but not yet on any task */
+  hasNoTask(): boolean {
+    return this.activeTimer !== null && !this.activeTimer.taskPath;
   }
 
   /** Working on a task is taking it on — it cannot stay in the backlog */
@@ -96,6 +127,7 @@ export class TimeTracker {
    */
   async stopTimer(fallback: Workspace): Promise<StopResult> {
     if (!this.activeTimer) throw new Error("No active timer");
+    if (this.hasNoTask()) throw new Error("Choose a task for this time first");
     const t = this.activeTimer;
     const ws = this.resolveWorkspace(t.workspaceId) ?? fallback;
 
@@ -141,7 +173,7 @@ export class TimeTracker {
    */
   handleRename(newPath: string, oldPath: string): void {
     const t = this.activeTimer;
-    if (!t) return;
+    if (!t || !t.taskPath) return;
     if (t.taskPath === oldPath) t.taskPath = newPath;
     else if (t.taskPath.startsWith(`${oldPath}/`)) t.taskPath = newPath + t.taskPath.slice(oldPath.length);
     else return;
@@ -203,7 +235,8 @@ export class TimeTracker {
   restore(saved: unknown): boolean {
     if (!saved || typeof saved !== "object") return false;
     const s = saved as Partial<ActiveTimer>;
-    if (typeof s.taskPath !== "string" || !s.taskPath) return false;
+    // An empty path is a timer started on no task
+    if (typeof s.taskPath !== "string") return false;
     if (typeof s.startedAt !== "string" || Number.isNaN(Date.parse(s.startedAt))) return false;
     const segmentStart =
       typeof s.segmentStart === "string" && !Number.isNaN(Date.parse(s.segmentStart))
@@ -212,7 +245,7 @@ export class TimeTracker {
 
     this.activeTimer = {
       taskPath: s.taskPath,
-      taskTitle: typeof s.taskTitle === "string" ? s.taskTitle : s.taskPath,
+      taskTitle: typeof s.taskTitle === "string" ? s.taskTitle : s.taskPath || NO_TASK_TITLE,
       workspaceId: typeof s.workspaceId === "string" ? s.workspaceId : "",
       startedAt: s.startedAt,
       segmentStart,
@@ -257,8 +290,9 @@ export class TimeTracker {
     return this.activeTimer !== null && this.activeTimer.segmentStart !== null;
   }
 
+  /** The running timer's task; null with no timer, or one not yet on a task */
   getActiveTaskPath(): string | null {
-    return this.activeTimer?.taskPath ?? null;
+    return this.activeTimer?.taskPath || null;
   }
 
   // ── Writing ─────────────────────────────────────────────────────────

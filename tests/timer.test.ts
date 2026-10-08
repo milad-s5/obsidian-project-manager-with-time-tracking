@@ -129,3 +129,31 @@ test("two entries in quick succession both count", async () => {
   await settle(120);
   assert.equal(s.fm(task).total_hours, 3);
 });
+
+test("a timer started on no task logs nothing until it is given one, and keeps its time", async () => {
+  const s = await setup();
+  const t = await s.task("Found it later", "", "backlog");
+  s.tracker.startWithoutTask(s.ws.id);
+  assert.ok(s.tracker.hasNoTask());
+  assert.equal(s.tracker.getActiveTaskPath(), null);
+  s.backdate(30);
+  await assert.rejects(s.tracker.stopTimer(s.ws), /Choose a task/);
+  assert.ok(s.tracker.isRunning(), "still running after a refused stop");
+  // Starting on a task gives the running timer that task instead
+  s.tracker.startTimer(t.path, "Found it later", s.ws.id);
+  assert.equal(s.tracker.getActiveTaskPath(), t.path);
+  const r = await s.tracker.stopTimer(s.ws);
+  await settle();
+  assert.equal(r.hours, 0.5);
+  assert.equal(s.fm(t).total_hours, 0.5);
+  assert.equal(s.fm(t).status, "active", "taken out of the backlog");
+});
+
+test("a timer on no task survives a restart", async () => {
+  const s = await setup();
+  s.tracker.startWithoutTask(s.ws.id);
+  const saved = JSON.parse(JSON.stringify(s.tracker.serialize()));
+  s.tracker.discard();
+  assert.ok(s.tracker.restore(saved));
+  assert.ok(s.tracker.hasNoTask());
+});

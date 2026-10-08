@@ -563,7 +563,8 @@ export class KanbanView extends ItemView {
     card.setAttribute("data-path", file.path);
 
     const activePath = this.plugin.timeTracker.getActiveTaskPath();
-    if (this.plugin.timeTracker.isRunning()) {
+    // A timer on no task yet dims nothing: no card is being worked on
+    if (activePath) {
       card.addClass(activePath === file.path ? "pm-task-active" : "pm-task-inactive");
     }
     if (isMutedStatus(status) && activePath !== file.path) {
