@@ -342,6 +342,12 @@ export class ProjectDashboardView extends ItemView {
     return this.plugin.calendar.kind === "jalali" ? `${base} (Jalali)` : `${base} (written)`;
   }
 
+  /** A project as people know it: by its title, not its file name */
+  private projectName(data: AnalyticsData, slug: string): string {
+    if (!slug) return "no project";
+    return data.projectsBySlug.get(slug)?.title ?? slug;
+  }
+
   // ── Range arithmetic ────────────────────────────────────────────────
 
   private bounds(data: AnalyticsData): RangeBounds {
@@ -479,7 +485,7 @@ export class ProjectDashboardView extends ItemView {
     this.renderTaskHoursChart(cards, data, inRange, b);
     this.renderStatusChart(cards, data);
     this.renderPriorityChart(cards, openTasks);
-    this.renderAttentionCard(cards, openTasks, today);
+    this.renderAttentionCard(cards, data, openTasks, today);
     this.renderRecentCard(cards, data, inRange);
   }
 
@@ -671,7 +677,7 @@ export class ProjectDashboardView extends ItemView {
     card.setTable(["Priority", "Open tasks"], segments.map((s) => [s.label, s.value]));
   }
 
-  private renderAttentionCard(parent: HTMLElement, openTasks: TaskInfo[], today: string): void {
+  private renderAttentionCard(parent: HTMLElement, data: AnalyticsData, openTasks: TaskInfo[], today: string): void {
     const soon = addDays(today, 7);
     const dated = openTasks
       .filter((t) => t.due)
@@ -691,7 +697,7 @@ export class ProjectDashboardView extends ItemView {
       this.renderListItem(list, {
         color: priorityColor(task.priority),
         title: task.title,
-        meta: `${task.projectSlug || "no project"} · ${task.status} · ${task.priority}`,
+        meta: `${this.projectName(data, task.projectSlug)} · ${task.status} · ${task.priority}`,
         value: overdue ? `${Math.abs(days)}d late` : days === 0 ? "today" : `in ${days}d`,
         overdue,
         onClick: () => this.plugin.openTaskModal(task.file, this.currentWorkspace),
@@ -719,7 +725,7 @@ export class ProjectDashboardView extends ItemView {
       this.renderListItem(list, {
         color: task ? statusColor(task.status) : "var(--text-faint)",
         title: rec.taskTitle,
-        meta: `${this.plugin.calendar.label(rec.iso)} · ${rec.projectSlug || "no project"}`,
+        meta: `${this.plugin.calendar.label(rec.iso)} · ${this.projectName(data, rec.projectSlug)}`,
         value: formatHours(rec.hours),
         onClick: () => {
           if (task) this.plugin.openTaskModal(task.file, this.currentWorkspace);
@@ -916,7 +922,7 @@ export class ProjectDashboardView extends ItemView {
       this.renderListItem(list, {
         color: task ? statusColor(task.status) : "var(--text-faint)",
         title: row.title,
-        meta: `${row.project || "no project"}${task ? ` · ${task.status}` : ""} · ${row.days.size} day${row.days.size === 1 ? "" : "s"}`,
+        meta: `${this.projectName(data, row.project)}${task ? ` · ${task.status}` : ""} · ${row.days.size} day${row.days.size === 1 ? "" : "s"}`,
         value: formatHours(row.hours),
         onClick: () => { if (task) this.plugin.openTaskModal(task.file, this.currentWorkspace); },
       });
@@ -929,7 +935,7 @@ export class ProjectDashboardView extends ItemView {
       ["Task", "Project", "Status", "Days", "Hours"],
       rows.map((r) => {
         const task = data.tasksBySlug.get(r.slug);
-        return [r.title, r.project || "—", task?.status ?? "—", r.days.size, formatHours(r.hours)];
+        return [r.title, r.project ? this.projectName(data, r.project) : "—", task?.status ?? "—", r.days.size, formatHours(r.hours)];
       })
     );
   }
@@ -977,7 +983,7 @@ export class ProjectDashboardView extends ItemView {
       this.renderListItem(list, {
         color: task ? statusColor(task.status) : "var(--text-faint)",
         title: row.title,
-        meta: `${row.project || "no project"}${task ? ` · ${task.status}` : ""} · ${share}% of the day`,
+        meta: `${this.projectName(data, row.project)}${task ? ` · ${task.status}` : ""} · ${share}% of the day`,
         value: formatHours(row.hours),
         onClick: () => { if (task) this.plugin.openTaskModal(task.file, this.currentWorkspace); },
       });

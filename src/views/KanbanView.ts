@@ -29,6 +29,8 @@ export class KanbanView extends ItemView {
   /** Closed columns the user expanded — has to survive the next render */
   private expandedCols: Set<string> = new Set();
   private refreshInterval: number | null = null;
+  /** Project titles by file name, for the cards — the title is what people know a project by */
+  private projectTitles: Map<string, string> = new Map();
   private renderTimer: number | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ProjectManagerPlugin) {
@@ -123,6 +125,7 @@ export class KanbanView extends ItemView {
     // Matched by title, since that is what the field shows and what the
     // suggester offers — the slug behind it is never shown to the user.
     const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
+    this.projectTitles = projectTitleBySlug;
 
     for (const status of statuses) {
       const colFiltered = tasks.filter((f) => {
@@ -338,7 +341,8 @@ export class KanbanView extends ItemView {
     // Meta row — project · due · hours, all on one line
     const meta = card.createDiv({ cls: "pm-card-meta" });
     if (fm.project) {
-      meta.createSpan({ text: `📁 ${linkSlug(fm.project)}` });
+      const slug = linkSlug(fm.project);
+      meta.createSpan({ text: `📁 ${this.projectTitles.get(slug) ?? slug}` });
     }
     if (fm.due) {
       // The local date, as the dashboard uses; the UTC one made a task due
