@@ -226,8 +226,14 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
         text
           .setValue(this.plugin.settings.statuses.join(", "))
           .onChange(async (value) => {
-            this.plugin.settings.statuses = value.split(",").map((s) => s.trim()).filter(Boolean);
+            // Stored the way notes are compared: trimmed and in lower case.
+            // A capitalised status used to be lowered only at the next
+            // reload, and until then its column matched no task at all.
+            this.plugin.settings.statuses = [
+              ...new Set(value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
+            ];
             await this.plugin.saveSettings();
+            this.plugin.refreshTimerViews();
           })
       );
 
