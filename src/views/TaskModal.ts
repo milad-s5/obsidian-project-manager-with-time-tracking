@@ -15,6 +15,7 @@ import {
 import { isArchivableStatus } from "../managers/ArchiveManager";
 import { readNoteSection, writeNoteSection } from "../utils/NoteContent";
 import { mountNotesEditor, NotesEditor } from "./NotesEditor";
+import { renderTimeEntries } from "./TimeEntriesSection";
 
 export class TaskModal extends Modal {
   plugin: ProjectManagerPlugin;
@@ -181,11 +182,9 @@ export class TaskModal extends Modal {
     if (!this.isNew && this.file) {
       contentEl.createEl("h3", { text: "Time Tracking" });
       const file = this.file;
-      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
 
-      const statsDiv = contentEl.createDiv({ cls: "pm-time-stats" });
-      statsDiv.createDiv({ text: `Total hours: ${fm.total_hours ?? 0}` });
-      statsDiv.createDiv({ text: `Days tracked: ${fm.days_count ?? 0}` });
+      // Totals, and every logged session to fix or remove
+      renderTimeEntries(contentEl, this.plugin, this.ws, file);
 
       // Timer controls
       const timerDiv = contentEl.createDiv({ cls: "pm-timer-controls" });

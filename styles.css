@@ -584,13 +584,6 @@
   border-radius: 8px;
 }
 
-.pm-time-stats {
-  display: flex;
-  gap: 20px;
-  padding: 10px 0;
-  font-size: 13px;
-  color: var(--text-muted);
-}
 .pm-timer-controls {
   display: flex;
   align-items: center;
@@ -1119,3 +1112,16 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 .pm-fullscreen-btn { display: inline-flex; align-items: center; }
 .pm-fullscreen-btn svg { width: 15px; height: 15px; }
 
+
+/* ===== Logged time in the task dialog ===== */
+.pm-entries { margin: 6px 0 12px; }
+.pm-entries-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pm-entries-total { color: var(--text-muted); font-size: var(--font-ui-small); }
+.pm-entries-list { margin-top: 8px; max-height: 260px; overflow-y: auto; border: 1px solid var(--background-modifier-border); border-radius: 8px; }
+.pm-entry { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--background-modifier-border); }
+.pm-entry:last-child { border-bottom: none; }
+.pm-entry-main { flex: 1; min-width: 0; }
+.pm-entry-day { font-size: var(--font-ui-small); font-weight: 600; unicode-bidi: plaintext; }
+.pm-entry-meta { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.pm-entry-hours { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 56px; text-align: end; }
+.pm-entry .pm-btn { padding: 2px 8px; font-size: var(--font-ui-smaller); }
