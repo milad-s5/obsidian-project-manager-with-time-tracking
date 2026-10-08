@@ -102,12 +102,30 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
 
       new Setting(wsContainer)
         .setName("Workspace name")
-        .addText((text) =>
-          text.setValue(ws.name).onChange(async (value) => {
-            this.plugin.settings.workspaces[index].name = value;
+        .setDesc("Renaming updates every task and project in the workspace to match.")
+        .addText((text) => {
+          text.setValue(ws.name);
+          // Applied when the field is left rather than on every keystroke:
+          // each rename rewrites notes, and half-typed names are not wanted
+          text.inputEl.addEventListener("change", async () => {
+            const target = this.plugin.settings.workspaces[index];
+            const name = text.getValue().trim();
+            if (!name || name === target.name) {
+              text.setValue(target.name);
+              return;
+            }
+            if (this.plugin.settings.workspaces.some((w) => w !== target && w.name === name)) {
+              new Notice(`There is already a workspace called "${name}"`);
+              text.setValue(target.name);
+              return;
+            }
+            const updated = await this.plugin.workspaceManager.renameWorkspace(target, name);
             await this.plugin.saveSettings();
-          })
-        );
+            this.plugin.refreshTimerViews();
+            new Notice(`Workspace renamed — ${updated} note${updated === 1 ? "" : "s"} updated`);
+            this.display();
+          });
+        });
 
       new Setting(wsContainer)
         .setName("Root folder")

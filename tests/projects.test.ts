@@ -66,3 +66,16 @@ test("titles in any script make a file name", async () => {
   assert.equal(ru.path, "Work/Projects/проект.md");
   assert.equal(dots.path, "Work/Projects/project.md");
 });
+
+test("renaming a workspace carries its notes along", async () => {
+  const s = await setup();
+  await s.task("Keep me");
+  await s.projectManager.createProject(s.ws, "Site", "active", "medium", "");
+  await settle();
+  const updated = await s.workspaceManager.renameWorkspace(s.ws, "Office");
+  await settle();
+  assert.equal(updated, 2);
+  assert.equal(s.ws.name, "Office");
+  assert.equal((await s.taskManager.getTasks(s.ws)).length, 1);
+  assert.equal((await s.projectManager.getProjects(s.ws)).length, 1);
+});
