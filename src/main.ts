@@ -133,6 +133,14 @@ export default class ProjectManagerPlugin extends Plugin {
       callback: () => this.openNewTaskModal(this.getCurrentWorkspace()),
     });
 
+    // The backlog column's "+" from anywhere, so an idea can be dropped in the
+    // moment it comes up — and from a button of your own, by this command's id
+    this.addCommand({
+      id: "new-backlog-task",
+      name: "New task in backlog",
+      callback: () => this.openNewTaskModal(this.getCurrentWorkspace(), { status: BACKLOG_STATUS }),
+    });
+
     this.addCommand({
       id: "new-project",
       name: "New project",
