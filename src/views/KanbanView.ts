@@ -287,7 +287,9 @@ export class KanbanView extends ItemView {
     board.addClass("pm-lanes");
     board.setCssStyles({
       gridTemplateColumns: ["var(--pm-lane-label-w)", ...statuses.map((st) => (this.plugin.isColumnCollapsed("tasks", st) ? "40px" : "260px"))].join(" "),
-      gridTemplateRows: `auto repeat(${Math.max(1, lanes.length)}, auto)`,
+      // max-content, not auto: the board has a fixed height, and auto rows
+      // shrink to fit it, squeezing the cards over each other
+      gridTemplateRows: `repeat(${Math.max(1, lanes.length) + 1}, max-content)`,
     });
     board.setCssProps({ "--pm-lane-label-w": `${this.plugin.settings.laneLabelWidth}px` });
     const labels = board.createDiv({ cls: "pm-lane-labels" });
