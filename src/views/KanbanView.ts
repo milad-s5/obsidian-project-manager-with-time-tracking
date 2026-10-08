@@ -3,7 +3,7 @@ import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
-import { renderBoardColumn, renderFullscreenButton } from "./BoardColumn";
+import { renderBoardColumn, renderFullscreenButton, renderMoreMenu } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import {
   isArchivedPath, isUnderAnyFolder, listProjectOptions, matchProject, projectFolders, taskFolders,
@@ -217,6 +217,12 @@ export class KanbanView extends ItemView {
       for (const task of visible) {
         this.renderTaskCard(cards, task, status);
       }
+      const header = col.querySelector<HTMLElement>(".pm-col-header");
+      if (header) {
+        for (const decorate of this.plugin.ext.columnDecorators) {
+          decorate({ board: "tasks", ws: this.currentWorkspace, status, count: colFiltered.length, col, header, cards });
+        }
+      }
 
       if (hidden > 0 || (closed && expanded && colFiltered.length > COLLAPSED_LIMIT)) {
         const toggle = cards.createEl("button", {
@@ -376,6 +382,10 @@ export class KanbanView extends ItemView {
       if (isPaused) timerDiv.createSpan({ cls: "pm-timer-badge", text: "paused" });
     }
 
+    for (const decorate of this.plugin.ext.cardDecorators) {
+      decorate({ board: "tasks", file, fm, ws: this.currentWorkspace, card, head, meta });
+    }
+
     // Click to open task modal
     card.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".pm-card-timer")) return;
@@ -428,6 +438,9 @@ export class KanbanView extends ItemView {
             }
           })
         );
+      }
+      for (const add of this.plugin.ext.cardMenuItems) {
+        add({ board: "tasks", file, fm, ws: this.currentWorkspace, menu });
       }
       menu.showAtMouseEvent(e);
     });
@@ -514,6 +527,7 @@ export class KanbanView extends ItemView {
     });
     focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
     renderFullscreenButton(actions, this.plugin.settings.boardFullscreen, () => void this.plugin.toggleBoardFullscreen());
+    renderMoreMenu(actions, this.plugin.ext, { where: "kanban", ws: this.currentWorkspace });
 
     // New task button
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })

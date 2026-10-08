@@ -21,6 +21,9 @@ export class TaskModal extends Modal {
   file: TFile | null;
   ws: Workspace;
   isNew: boolean;
+  /** Readers for the fields features added; each gives values or a reason not to save */
+  private extraFields: (() => Record<string, unknown> | string)[] = [];
+  private extraValues: Record<string, unknown> = {};
   timerInterval: number | null = null;
 
   // Form fields
@@ -159,6 +162,12 @@ export class TaskModal extends Modal {
       value: this.due,
       onChange: (v) => (this.due = v),
     });
+
+    // Fields added by features (estimate, tags and the like)
+    const fm = this.file ? this.app.metadataCache.getFileCache(this.file)?.frontmatter ?? {} : {};
+    this.extraFields = this.plugin.ext.dialogFields
+      .filter((f) => f.kinds.includes("task"))
+      .map((f) => f.render({ kind: "task", ws: this.ws, file: this.file, fm, container: contentEl }));
 
     this.notesEditor = mountNotesEditor(contentEl, {
       app: this.app,
@@ -347,6 +356,12 @@ export class TaskModal extends Modal {
   private async submitAndClose(): Promise<void> {
     if (!this.title.trim()) { new Notice("Title is required"); return; }
     if (!this.resolveProject()) return;
+    this.extraValues = {};
+    for (const read of this.extraFields) {
+      const values = read();
+      if (typeof values === "string") { new Notice(values); return; }
+      Object.assign(this.extraValues, values);
+    }
     // A failed save used to vanish into the console with the dialog still
     // open and nothing said; now it is reported and the dialog stays
     try {
@@ -391,6 +406,9 @@ export class TaskModal extends Modal {
         this.priority,
         this.due
       );
+      if (Object.keys(this.extraValues).length) {
+        await this.app.fileManager.processFrontMatter(file, (fm) => Object.assign(fm, this.extraValues));
+      }
       if (this.notes.trim()) await this.app.vault.process(file, (c) => writeNoteSection(c, this.notes));
       new Notice(`Task created: ${this.title}`);
     } else if (this.file) {
@@ -400,6 +418,7 @@ export class TaskModal extends Modal {
         status: this.status,
         priority: this.priority,
         due: this.due,
+        ...this.extraValues,
       });
       await renameHeading(this.app, this.file, this.originalTitle, this.title);
       if (this.notes !== this.originalNotes) {

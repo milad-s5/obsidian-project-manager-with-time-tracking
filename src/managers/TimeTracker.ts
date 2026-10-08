@@ -5,6 +5,7 @@ import { isoToDate } from "../utils/Jalali";
 import { TaskManager } from "./TaskManager";
 import { isBacklogStatus } from "../utils/StatusColors";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
+import type { TimeLogged } from "../core/Extensions";
 
 export interface StopResult {
   hours: number;
@@ -18,6 +19,8 @@ export class TimeTracker {
   private persist: () => void = () => {};
   /** Turns the workspace id saved with a timer back into the workspace */
   private resolveWorkspace: (id: string) => Workspace | null = () => null;
+  /** Told about every piece of time written, timer or manual */
+  private logged: (entry: TimeLogged) => void = () => {};
 
   constructor(private app: App, private taskManager: TaskManager) {}
 
@@ -27,6 +30,10 @@ export class TimeTracker {
 
   setWorkspaceResolver(fn: (id: string) => Workspace | null): void {
     this.resolveWorkspace = fn;
+  }
+
+  setLoggedHandler(fn: (entry: TimeLogged) => void): void {
+    this.logged = fn;
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────
@@ -107,11 +114,13 @@ export class TimeTracker {
     // dropping it, as this used to, lost the whole session while the notice
     // still said it had been logged.
     const taskFile = this.findTaskFile(t.taskPath, ws);
+    const taskSlug = taskFile?.basename ?? basenameOf(t.taskPath);
+    let entryFile: TFile;
     try {
       // The entry goes first because it is the record that counts: if it
       // cannot be written, nothing has been logged and the timer can come back
       // exactly as it was.
-      await this.writeTimeEntry(ws, taskFile?.basename ?? basenameOf(t.taskPath), hours, start, end);
+      entryFile = await this.writeTimeEntry(ws, taskSlug, hours, start, end);
     } catch (err) {
       if (!this.activeTimer) this.activeTimer = t;
       throw err;
@@ -121,6 +130,7 @@ export class TimeTracker {
     if (taskFile) {
       await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
     }
+    this.logged({ ws, taskFile, taskSlug, hours, start, end, entryFile, source: "timer" });
     return { hours, taskFound: !!taskFile };
   }
 
@@ -264,8 +274,9 @@ export class TimeTracker {
     // keeps the day when the vault is later opened a few timezones away.
     const start = isoToDate(date);
     const end = new Date(start.getTime() + hours * 3600000);
-    await this.writeTimeEntry(ws, taskFile.basename, hours, start, end);
+    const entryFile = await this.writeTimeEntry(ws, taskFile.basename, hours, start, end);
     await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
+    this.logged({ ws, taskFile, taskSlug: taskFile.basename, hours, start, end, entryFile, source: "manual" });
   }
 
   private async writeTimeEntry(
@@ -274,7 +285,7 @@ export class TimeTracker {
     hours: number,
     startTime: Date,
     endTime: Date
-  ): Promise<void> {
+  ): Promise<TFile> {
     const stamp = toISOFileStamp(endTime);
     let path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${taskSlug}_${stamp}.md`);
 
@@ -293,7 +304,7 @@ end_time: "${endTime.toISOString()}"
 created: "${todayString()}"
 ---
 `;
-    await this.app.vault.create(path, content);
+    return this.app.vault.create(path, content);
   }
 }
 

@@ -269,6 +269,9 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    // Settings of features, each under its own heading
+    for (const section of this.plugin.ext.settingsSections) section(containerEl);
   }
 
   /**

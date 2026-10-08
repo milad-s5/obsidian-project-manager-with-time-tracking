@@ -13,6 +13,7 @@ import { AnalyticsManager } from "./managers/AnalyticsManager";
 import { ArchiveManager } from "./managers/ArchiveManager";
 import { ProjectStatsSync } from "./managers/ProjectStatsSync";
 import { rebuildTotals } from "./managers/TotalsRebuilder";
+import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
@@ -37,6 +38,11 @@ export default class ProjectManagerPlugin extends Plugin {
   /** Jalali or Gregorian, per settings. Rebuilt whenever those change. */
   calendar!: Calendar;
   projectStats!: ProjectStatsSync;
+  /** Where features plug into boards, dialogs, the dashboard and settings */
+  ext = new Extensions();
+  /** status-changed, time-logged, timer-changed — see src/core/Extensions.ts */
+  events = new PmEvents();
+  private statusWatcher!: StatusWatcher;
   /** Raw timer from data.json — held until timeTracker has been constructed */
   private persistedTimer: unknown = null;
   /** Shows only "active" status items — lives on the plugin, not a view, so
@@ -50,11 +56,16 @@ export default class ProjectManagerPlugin extends Plugin {
     this.projectManager = new ProjectManager(this.app);
     this.taskManager = new TaskManager(this.app);
     this.timeTracker = new TimeTracker(this.app, this.taskManager);
-    this.timeTracker.setPersistHandler(() => void this.savePluginData());
+    this.timeTracker.setPersistHandler(() => {
+      void this.savePluginData();
+      this.events.trigger("timer-changed");
+    });
+    this.timeTracker.setLoggedHandler((entry) => this.events.trigger("time-logged", entry));
     this.timeTracker.setWorkspaceResolver((id) => this.findWorkspace(id));
     this.analytics = new AnalyticsManager(this.app);
     this.noteScanner = new NoteScanner(this.app);
     this.archiveManager = new ArchiveManager(this.app, this.workspaceManager);
+    this.statusWatcher = new StatusWatcher(this.app, this.events, (file) => this.workspaceOfFile(file));
     this.projectStats = new ProjectStatsSync(
       this.app,
       this.projectManager,
@@ -70,12 +81,24 @@ export default class ProjectManagerPlugin extends Plugin {
       this.app.vault.on("rename", (file, oldPath) => {
         this.timeTracker.handleRename(file.path, oldPath);
         this.projectStats.onRenamed(file.path, oldPath);
+        this.statusWatcher.onRenamed(file.path, oldPath);
       })
     );
     this.app.workspace.onLayoutReady(() => {
       this.projectStats.seed();
-      this.registerEvent(this.app.metadataCache.on("changed", (file) => this.projectStats.onChanged(file)));
-      this.registerEvent(this.app.vault.on("delete", (file) => this.projectStats.onDeleted(file.path)));
+      this.statusWatcher.seed();
+      this.registerEvent(
+        this.app.metadataCache.on("changed", (file) => {
+          this.projectStats.onChanged(file);
+          this.statusWatcher.onChanged(file);
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("delete", (file) => {
+          this.projectStats.onDeleted(file.path);
+          this.statusWatcher.onDeleted(file.path);
+        })
+      );
     });
     await this.migrateStatusNames();
     await this.addBacklogStatus();

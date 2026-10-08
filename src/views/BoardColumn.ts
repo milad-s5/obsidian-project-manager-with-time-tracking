@@ -1,4 +1,5 @@
-import { setIcon } from "obsidian";
+import { Menu, setIcon } from "obsidian";
+import { Extensions, MoreMenuContext } from "../core/Extensions";
 import { statusColor } from "../utils/StatusColors";
 
 /** Which board a column belongs to — each remembers its folded columns apart */
@@ -121,3 +122,26 @@ export function renderFullscreenButton(
   btn.addEventListener("click", toggle);
   return btn;
 }
+
+/**
+ * The toolbar's "⋯" button, holding whatever features have added to it.
+ * Nothing is drawn when no feature has.
+ */
+export function renderMoreMenu(
+  parent: HTMLElement,
+  ext: Extensions,
+  context: Omit<MoreMenuContext, "menu">
+): void {
+  if (!ext.moreMenuItems.length) return;
+  const btn = parent.createEl("button", {
+    cls: "pm-btn pm-btn-secondary pm-more-btn",
+    attr: { "aria-label": "More actions" },
+  });
+  setIcon(btn, "more-horizontal");
+  btn.addEventListener("click", (e) => {
+    const menu = new Menu();
+    for (const add of ext.moreMenuItems) add({ ...context, menu });
+    menu.showAtMouseEvent(e);
+  });
+}
+

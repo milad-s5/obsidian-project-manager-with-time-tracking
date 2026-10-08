@@ -6,7 +6,7 @@ import { statusColor, priorityColor, isBacklogStatus, isMutedStatus } from "../u
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { renderTimerBar, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
-import { renderBoardColumn, renderFullscreenButton } from "./BoardColumn";
+import { renderBoardColumn, renderFullscreenButton, renderMoreMenu } from "./BoardColumn";
 import {
   AnalyticsData, TimeRecord, TaskInfo, ProjectInfo,
   currentStreak, groupHoursBy, hoursPerDay, isDoneStatus, isOpenStatus,
@@ -20,6 +20,7 @@ import {
 import { addDays, daysBetween, rangeDays, todayISO } from "../utils/Jalali";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { listProjectOptions } from "../utils/WorkspacePaths";
+import { DashboardContext } from "../core/Extensions";
 
 export const PROJECT_DASHBOARD_VIEW_TYPE = "project-manager-project-dashboard";
 
@@ -58,7 +59,8 @@ export class ProjectDashboardView extends ItemView {
   filterPriority = "";
   filterProjectQuery = "";
 
-  private tab: TabId = "projects";
+  /** A built-in tab, or the id of one a feature added */
+  private tab: TabId | string = "projects";
   private range: RangeId = "month";
   /** The day the range is computed around. The ◀ ▶ arrows move it, so nothing is
    *  pinned to "today" any more and past months and years can be seen. */
@@ -147,7 +149,9 @@ export class ProjectDashboardView extends ItemView {
     const scroll = container.createDiv({ cls: "pm-db-scroll" });
     const data = await this.plugin.analytics.collect(this.currentWorkspace);
 
-    if (this.tab === "overview") this.renderOverview(scroll, data);
+    const extra = this.plugin.ext.dashboardTabs.find((t) => t.id === this.tab);
+    if (extra) await extra.render(scroll, this.context(data));
+    else if (this.tab === "overview") this.renderOverview(scroll, data);
     else if (this.tab === "calendar") this.renderCalendarTab(scroll, data);
     else {
       this.noted = await this.plugin.noteScanner.scan(data.projects.map((p) => p.file));
@@ -259,6 +263,7 @@ export class ProjectDashboardView extends ItemView {
     });
     focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
     renderFullscreenButton(actions, this.plugin.settings.boardFullscreen, () => void this.plugin.toggleBoardFullscreen());
+    renderMoreMenu(actions, this.plugin.ext, { where: "dashboard", ws: this.currentWorkspace });
 
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => this.plugin.openNewTaskModal(this.currentWorkspace));
@@ -325,9 +330,25 @@ export class ProjectDashboardView extends ItemView {
     void this.render();
   }
 
+  /** What a feature's tab or card is drawn from */
+  private context(data: AnalyticsData): DashboardContext {
+    const b = this.bounds(data);
+    return {
+      ws: this.currentWorkspace,
+      data,
+      from: b.from,
+      to: b.to,
+      effTo: b.effTo,
+      periodLabel: b.label,
+      refresh: () => void this.render(),
+      tooltip: this.tooltip,
+    };
+  }
+
   private renderTabs(container: HTMLElement): void {
     const tabs = container.createDiv({ cls: "pm-db-tabs" });
-    for (const t of TABS) {
+    const all = [...TABS, ...this.plugin.ext.dashboardTabs.map((t) => ({ id: t.id, label: t.label() }))];
+    for (const t of all) {
       const btn = tabs.createEl("button", {
         cls: `pm-db-tab${t.id === this.tab ? " is-active" : ""}`,
         text: t.label,
@@ -496,6 +517,10 @@ export class ProjectDashboardView extends ItemView {
     this.renderPriorityChart(cards, openTasks);
     this.renderAttentionCard(cards, data, openTasks, today);
     this.renderRecentCard(cards, data, inRange);
+    if (this.plugin.ext.overviewCards.length) {
+      const ctx = this.context(data);
+      for (const add of this.plugin.ext.overviewCards) add(cards, ctx);
+    }
   }
 
   private renderHoursChart(
@@ -1021,7 +1046,7 @@ export class ProjectDashboardView extends ItemView {
         return p.status === status;
       });
 
-      const { cards } = renderBoardColumn(board, {
+      const { col, cards } = renderBoardColumn(board, {
         status,
         count: colProjects.length,
         collapsed: this.plugin.isColumnCollapsed("projects", status),
@@ -1046,6 +1071,12 @@ export class ProjectDashboardView extends ItemView {
 
       if (!colProjects.length) cards.createDiv({ cls: "pm-col-empty", text: "No projects here" });
       for (const project of colProjects) this.renderProjectCard(cards, project);
+      const header = col.querySelector<HTMLElement>(".pm-col-header");
+      if (header) {
+        for (const decorate of this.plugin.ext.columnDecorators) {
+          decorate({ board: "projects", ws: this.currentWorkspace, status, count: colProjects.length, col, header, cards });
+        }
+      }
     }
   }
 
@@ -1097,6 +1128,11 @@ export class ProjectDashboardView extends ItemView {
     }
     meta.createSpan({ cls: "pm-card-hours", text: `⏱ ${formatHours(project.hours)}` });
 
+    const fm = this.app.metadataCache.getFileCache(project.file)?.frontmatter ?? {};
+    for (const decorate of this.plugin.ext.cardDecorators) {
+      decorate({ board: "projects", file: project.file, fm, ws: this.currentWorkspace, card, head, meta });
+    }
+
     card.addEventListener("click", () => this.plugin.openProjectModal(project.file, this.currentWorkspace));
 
     card.addEventListener("contextmenu", (e) => {
@@ -1112,6 +1148,9 @@ export class ProjectDashboardView extends ItemView {
           this.plugin.openProjectModal(project.file, this.currentWorkspace);
         })
       );
+      for (const add of this.plugin.ext.cardMenuItems) {
+        add({ board: "projects", file: project.file, fm, ws: this.currentWorkspace, menu });
+      }
       menu.showAtMouseEvent(e);
     });
   }
