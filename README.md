@@ -12,13 +12,23 @@ Everything lives in your vault as plain notes with frontmatter. There is no data
 
 ## What it does
 
-**Kanban board and time tracking.** Tasks as cards in status columns, drag to change status. Start a timer on a task, pause it when you get pulled away, stop it when you are done. Logged hours are the time actually worked — a pause does not bill lunch as work. The timer survives a crash or a restart: it is stored on every state change and restored on load, telling you how long it thinks it has been running so you can keep or discard it.
+**Kanban board and time tracking.** Tasks as cards in status columns, drag to change status. Start a timer on a task, pause it when you get pulled away, stop it when you are done. Logged hours are the time actually worked — a pause does not bill lunch as work. The timer survives a crash or a restart: it is stored on every state change and restored on load, telling you how long it thinks it has been running so you can keep or discard it. A timer keeps to its task even when the task's note is archived or renamed while it runs.
+
+**Timer in the status bar.** While a timer runs, Obsidian's status bar shows its task and the time so far, so it stays in sight while you write in any note. Click it to pause or resume, stop and log, reset, or open the task.
+
+**Pomodoro.** Switch it on in settings and the timer works in rounds: after 25 minutes of running time it pauses itself for a 5-minute break (every fourth break a 15-minute one) and starts again when the break is over. Only running time counts, so pausing by hand holds the round. Finished rounds are counted on the task and shown as 🍅 on its card. All the lengths are settings.
+
+**Edit logged time.** Open a task and choose *Edit logged time* to see every session logged on it, with its day, start and end. Change a session's day, start time or length, or delete it, and the time entry note, the task's Time Log row and the totals of the task and its project all change together.
 
 ![The kanban board with a timer running](./images/time-tracking.png)
 
 **Backlog.** Work you may do one day but have not taken on yet. It gets its own column, folded by default, with a one-line field for adding to it: type, Enter, next. Backlog tasks stay out of open tasks, overdue and project progress, and starting a timer on one moves it to *active*.
 
 **Foldable columns.** Every column on either board has an arrow that folds it into a narrow bar, and the board remembers which ones you folded. A folded bar still takes a dropped card.
+
+**Full screen.** A button on both boards lifts the board over the whole window, hiding the sidebars, ribbon, tab bar and status bar. It is one switch for both boards and is remembered; press it again or Esc to get everything back.
+
+**Right-to-left boards.** A setting mirrors the Kanban and the projects board, so the first column starts on the right and cards read right to left. Each piece of text keeps the order of its own language.
 
 **Dashboard.** Three tabs:
 
@@ -36,17 +46,19 @@ Every period can be stepped backwards and forwards, so past months and years are
 
 **Due dates.** A calendar-aware date picker for tasks and projects — it draws in Gregorian or Jalali, whichever the calendar setting is, so a due date reads the same everywhere on the dashboard.
 
-**Archive.** When a task or project reaches done, cancel or quite it moves into an archive folder together with its time entries. Closing a project takes its tasks with it. Reopening walks it back, except that a task which is done in its own right stays put. Archived items still appear in the board and every report — only the files move.
+**Archive.** When a task or project reaches a closed status (done, cancel and quite unless you change the list in settings) it moves into an archive folder together with its time entries. Closing a project takes its tasks with it. Reopening walks it back, except that a task which is done in its own right stays put. Archived items still appear in the board and every report — only the files move.
 
 **Workspaces.** Separate sets of folders — work and personal, say — each with its own projects, tasks, time entries and archive.
 
 **Calendar.** Gregorian or Jalali (Shamsi/Persian), with the week starting on whichever day you use. Month grouping, week boundaries, seasons and quarters, digits and labels all follow the choice.
 
+**Totals that stay right.** A project note's `hours` and `task_count` follow its tasks as they change. If the totals ever drift from the logged time, for example after editing notes by hand, **Rebuild totals from logged time** recounts every task and project in the workspace.
+
 ## Getting started
 
-1. Open the command palette and run **Open Kanban Board** or **Open Project Dashboard**, or use the ribbon icons.
+1. Open the command palette and run **Open kanban board** or **Open project dashboard**, or use the ribbon icons.
 2. Create a project, then tasks under it.
-3. Start a timer from a task's card menu, from the task modal, or with **Start Timer** on the open note.
+3. Start a timer from a task's card menu, from the task dialog, or with **Start timer on the open note**.
 
 Folders are created for you on first run. Everything about them is configurable in settings.
 
@@ -78,27 +90,36 @@ workspace: "[[Work]]"
 
 Anything you write beyond that template is yours, and the board marks cards that carry notes so you can find them without opening each one.
 
+Each logged session also gets a small note of its own in the workspace's TimeEntries folder, holding its task, hours, start and end. Edit or delete sessions from the task dialog rather than by hand, so all three places stay in step.
+
 ## Settings
 
-- **Calendar** and **week start**
-- **Workspaces** — name and folder for projects, tasks, time entries and the archive
+- **Calendar**, **week start** and **board direction** (left to right or right to left)
+- **Deleting a task or project** — to the trash, or permanently
+- **Workspaces** — name and folder for projects, tasks, time entries and the archive. Renaming a workspace updates all of its notes to match.
 - **Archive folder** per workspace, and a *Tidy archive* button for items closed before archiving existed. Leave the folder empty to turn archiving off.
 - **Statuses** and **priorities** — the board's columns follow the status list
+- **Closed statuses** — which statuses archive an item and leave it out of open work
+- **Rename a status** — renames it in settings and in every task and project note
+- **Pomodoro** — on or off, round and break lengths, and whether to resume after a break
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| Open Kanban Board | |
-| Open Project Dashboard | |
-| New Task / New Project | |
-| Start Timer | on the active note, if it is a task |
-| Pause / Resume Timer | |
-| Stop Timer | logs the tracked time |
-| Reset Timer | back to zero, still running, nothing logged |
-| Discard Timer | throws it away |
-| Toggle Focus Mode | active items only — shared between both boards |
+| Open kanban board | |
+| Open project dashboard | |
+| New task / New project | |
+| Start timer on the open note | if the open note is a task |
+| Pause or resume the timer | |
+| Stop the timer | logs the tracked time |
+| Reset the timer | back to zero, still running, nothing logged |
+| Discard the timer | throws it away |
+| Toggle focus mode | active items only — shared between both boards |
+| Toggle full screen for the boards | shared between both boards |
 | Tidy archive | moves closed items, restores reopened ones |
+| Rebuild totals from logged time | recounts every task's and project's totals |
+| Pomodoro: end the break now | when Pomodoro is on |
 
 ## For other plugin authors
 
