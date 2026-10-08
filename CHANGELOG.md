@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
 ### New
 - **Timer in the status bar.** While a timer runs, the status bar shows its task and time; click it to pause, resume, stop, reset or open the task.

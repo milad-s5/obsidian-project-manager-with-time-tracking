@@ -1,6 +1,6 @@
 {
   "name": "project-manager-with-time-tracking",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "private": true,
   "description": "Plan projects and tasks as Markdown notes, track time against them, and review it on a dashboard.",
   "main": "main.js",
