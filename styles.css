@@ -1125,3 +1125,7 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 .pm-entry-meta { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .pm-entry-hours { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 56px; text-align: end; }
 .pm-entry .pm-btn { padding: 2px 8px; font-size: var(--font-ui-smaller); }
+
+/* ===== Status bar timer ===== */
+.pm-statusbar-timer { font-variant-numeric: tabular-nums; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-statusbar-timer.is-paused { color: var(--text-muted); }

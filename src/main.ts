@@ -14,6 +14,7 @@ import { ArchiveManager } from "./managers/ArchiveManager";
 import { ProjectStatsSync } from "./managers/ProjectStatsSync";
 import { rebuildTotals } from "./managers/TotalsRebuilder";
 import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
+import { setupStatusBarTimer } from "./features/statusBarTimer";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
@@ -249,6 +250,9 @@ export default class ProjectManagerPlugin extends Plugin {
         this.refreshTimerViews();
       },
     });
+
+    // Features — each lives in src/features and plugs itself in
+    setupStatusBarTimer(this);
 
     // Ribbon icons for quick access
     this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());
