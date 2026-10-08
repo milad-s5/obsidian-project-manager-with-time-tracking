@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
 
 ### New
 - **Group the task board by project.** A *By project* button on the Kanban; settings choose a row per project (the default) or groups inside each column. Groups fold and stay folded.
