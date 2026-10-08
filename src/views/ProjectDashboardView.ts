@@ -333,6 +333,15 @@ export class ProjectDashboardView extends ItemView {
     }
   }
 
+  /**
+   * Header for a table column that spells a date out in the chosen
+   * calendar. These used to say "(Jalali)" whatever the calendar, so a
+   * Gregorian vault got Gregorian dates under a Jalali heading.
+   */
+  private labelColumn(base: string): string {
+    return this.plugin.calendar.kind === "jalali" ? `${base} (Jalali)` : `${base} (written)`;
+  }
+
   // ── Range arithmetic ────────────────────────────────────────────────
 
   private bounds(data: AnalyticsData): RangeBounds {
@@ -519,7 +528,7 @@ export class ProjectDashboardView extends ItemView {
     const card = chartCard(
       parent,
       weekly ? "Hours per week" : "Hours per day",
-      `${b.label} · ${weekly ? "grouped by Jalali week" : "one column per day"}`
+      `${b.label} · ${weekly ? "grouped by week" : "one column per day"}`
     );
     card.root.addClass("pm-db-wide");
 
@@ -536,7 +545,7 @@ export class ProjectDashboardView extends ItemView {
     });
 
     card.setTable(
-      ["Date (Jalali)", "Date", "Hours"],
+      [this.labelColumn("Date"), "Date", "Hours"],
       points.map((p) => [
         weekly ? this.plugin.calendar.weekLabel(p.key) : this.plugin.calendar.label(p.key),
         p.key,
@@ -690,7 +699,7 @@ export class ProjectDashboardView extends ItemView {
     }
 
     card.setTable(
-      ["Task", "Due", "Due (Jalali)", "Priority", "Status"],
+      ["Task", "Due", this.labelColumn("Due"), "Priority", "Status"],
       dated.map((t) => [t.title, t.due, this.plugin.calendar.label(t.due), t.priority, t.status])
     );
   }
@@ -719,7 +728,7 @@ export class ProjectDashboardView extends ItemView {
     }
 
     card.setTable(
-      ["Date", "Date (Jalali)", "Task", "Hours"],
+      ["Date", this.labelColumn("Date"), "Task", "Hours"],
       [...inRange].reverse().map((r) => [r.iso, this.plugin.calendar.label(r.iso), r.taskTitle, formatHours(r.hours)])
     );
   }
@@ -813,7 +822,7 @@ export class ProjectDashboardView extends ItemView {
     heatLegend(card.body);
 
     card.setTable(
-      ["Date", "Date (Jalali)", "Weekday", "Hours", "Tasks"],
+      ["Date", this.labelColumn("Date"), "Weekday", "Hours", "Tasks"],
       days.map((iso) => [
         iso,
         this.plugin.calendar.label(iso),
@@ -837,7 +846,7 @@ export class ProjectDashboardView extends ItemView {
     this.renderTaskBreakdown(cards, data, inRange, b);
   }
 
-  /** Per Jalali month totals — for the seasonal and yearly views, jumping to a month */
+  /** Per month totals — for the seasonal and yearly views, jumping to a month */
   private renderMonthlyTotals(parent: HTMLElement, data: AnalyticsData, b: RangeBounds): void {
     const cal = this.plugin.calendar;
     const groups = cal.groupByMonth(rangeDays(b.from, b.to));
