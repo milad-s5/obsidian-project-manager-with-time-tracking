@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App, TFile, normalizePath } from "obsidian";
 import { DeleteBehaviour } from "../types";
 
 /**
@@ -22,4 +22,19 @@ export function deleteWarning(behaviour: DeleteBehaviour): string {
   return behaviour === "permanent"
     ? "will be deleted for good — this cannot be undone"
     : "will be moved to the trash";
+}
+
+/**
+ * A path in this folder whose note name no other note in the vault has.
+ *
+ * Tasks, projects and time entries all find each other through [[name]]
+ * links, which Obsidian resolves by name across the whole vault, ignoring
+ * case. Two notes of the same name, one archived and one not, made those
+ * links ambiguous, and the reports then put one task's hours on the other.
+ */
+export function uniqueNotePath(app: App, folder: string, slug: string): string {
+  const taken = new Set(app.vault.getMarkdownFiles().map((f) => f.basename.toLowerCase()));
+  let name = slug;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${slug}-${n}`;
+  return normalizePath(`${folder}/${name}.md`);
 }

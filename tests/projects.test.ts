@@ -27,3 +27,19 @@ test("archived projects are still listed, with their status", async () => {
   assert.match(p.path, /Archive\/Projects/);
   assert.deepEqual(listProjectOptions(s.app as never, s.ws), [{ slug: "launch", title: "Launch", status: "done" }]);
 });
+
+test("a new task never shares its note name with an archived one", async () => {
+  const s = await setup();
+  const first = await s.task("Weekly review");
+  await s.tracker.addManualEntry(s.ws, first as never, 2, "2026-09-01");
+  await s.app.fileManager.processFrontMatter(first, (fm) => { fm.status = "done"; fm.project = "[[alpha]]"; });
+  await settle();
+  await s.archive.syncTask(s.ws, first as never);
+  await settle();
+
+  const second = await s.taskManager.createTask(s.ws, "Weekly review", "beta", "active", "medium", "");
+  await settle();
+  assert.equal(second.path, "Work/Tasks/weekly-review-2.md");
+  const data = await s.analytics.collect(s.ws);
+  assert.deepEqual(data.records.map((r) => [r.taskSlug, r.projectSlug]), [["weekly-review", "alpha"]]);
+});

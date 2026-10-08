@@ -1,9 +1,10 @@
-import { App, TFile, normalizePath } from "obsidian";
+import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
 import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
 import { toISODate } from "../utils/Jalali";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
+import { uniqueNotePath } from "../utils/FileOps";
 
 export class TaskManager {
   constructor(private app: App) {}
@@ -21,7 +22,9 @@ export class TaskManager {
     due: string,
     extra?: Record<string, string | number>
   ): Promise<TFile> {
-    const path = await this.uniqueTaskPath(ws, slugify(title));
+    // Two different tasks can share a title, especially when imported in bulk
+    // or when a recurring chore comes back after the last one was archived
+    const path = uniqueNotePath(this.app, ws.tasksFolder, slugify(title) || "task");
 
     const extraLines = Object.entries(extra ?? {})
       .map(([k, v]) => `${k}: ${typeof v === "number" ? v : yamlString(String(v))}\n`)
@@ -52,21 +55,6 @@ ${extraLines}---
 
     const file = await this.app.vault.create(path, frontmatter);
     return file;
-  }
-
-  /**
-   * Two different tasks can share a title, especially when imported in bulk.
-   * vault.create used to throw in that case.
-   */
-  private async uniqueTaskPath(ws: Workspace, slug: string): Promise<string> {
-    const base = slug || "task";
-    let path = normalizePath(`${ws.tasksFolder}/${base}.md`);
-    let n = 2;
-    while (this.app.vault.getAbstractFileByPath(path)) {
-      path = normalizePath(`${ws.tasksFolder}/${base}-${n}.md`);
-      n++;
-    }
-    return path;
   }
 
   /** Includes archived tasks — otherwise the done column comes up empty */
