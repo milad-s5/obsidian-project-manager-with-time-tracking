@@ -3,6 +3,7 @@ import ProjectManagerPlugin from "./main";
 import { DeleteBehaviour } from "./types";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { CalendarKind, WeekStart } from "./utils/Calendar";
+import { RenameStatusModal } from "./views/RenameStatusModal";
 
 export class ProjectManagerSettingTab extends PluginSettingTab {
   plugin: ProjectManagerPlugin;
@@ -253,6 +254,15 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             this.plugin.refreshTimerViews();
           })
+      );
+
+    new Setting(containerEl)
+      .setName("Rename a status")
+      .setDesc("Renames it here and in every task and project note, so nothing is left on the old name.")
+      .addButton((btn) =>
+        btn.setButtonText("Rename…").onClick(() => {
+          new RenameStatusModal(this.app, this.plugin, () => this.display()).open();
+        })
       );
 
     // Priorities

@@ -25,3 +25,25 @@ test("a custom closing status sends a task to the archive", async () => {
     setClosedStatuses(DEFAULT_CLOSED_STATUSES);
   }
 });
+
+test("renaming a status reaches every note and the settings", async () => {
+  const { renameStatusInNotes, renameStatusInSettings } = await import("../src/managers/StatusRenamer");
+  const s = await setup();
+  const a = await s.task("One", "", "quite");
+  const b = await s.task("Two", "", "todo");
+  const changed = await renameStatusInNotes(s.app as never, s.workspaces, "quite", "quit");
+  await settle();
+  assert.equal(changed, 1);
+  assert.equal(s.fm(a).status, "quit");
+  assert.equal(s.fm(b).status, "todo");
+
+  const settings = {
+    statuses: ["todo", "quite", "quit"],
+    closedStatuses: ["done", "quite"],
+    collapsedColumns: { "tasks:quite": true },
+  } as never as import("../src/types").ProjectManagerSettings;
+  renameStatusInSettings(settings, "quite", "quit");
+  assert.deepEqual(settings.statuses, ["todo", "quit"]);
+  assert.deepEqual(settings.closedStatuses, ["done", "quit"]);
+  assert.deepEqual(settings.collapsedColumns, { "tasks:quit": true });
+});
