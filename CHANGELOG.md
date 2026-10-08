@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.2
+
+### Fixed
+- When the board grouped by project was taller than the window, its rows were squeezed: cards overlapped and the status names at the top were cut off. Rows now keep their full height and the board scrolls, with the column heads staying in view.
+
 ## 1.5.1
 
 ### New
