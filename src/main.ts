@@ -12,6 +12,7 @@ import { ProjectModal } from "./views/ProjectModal";
 import { AnalyticsManager } from "./managers/AnalyticsManager";
 import { ArchiveManager } from "./managers/ArchiveManager";
 import { ProjectStatsSync } from "./managers/ProjectStatsSync";
+import { rebuildTotals } from "./managers/TotalsRebuilder";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
@@ -121,6 +122,20 @@ export default class ProjectManagerPlugin extends Plugin {
             : "Archive already up to date"
         );
         this.refreshTimerViews();
+      },
+    });
+
+    this.addCommand({
+      id: "rebuild-totals",
+      name: "Rebuild totals from logged time",
+      callback: async () => {
+        const ws = this.getCurrentWorkspace();
+        const r = await rebuildTotals(this.app, ws, this.analytics, this.projectManager);
+        new Notice(
+          r.tasks || r.projects
+            ? `Totals rebuilt — ${r.tasks} task(s) and ${r.projects} project(s) corrected`
+            : "Totals already match the logged time"
+        );
       },
     });
 

@@ -47,3 +47,25 @@ test("deleting a task recounts its project", async () => {
   await s.settleAll();
   assert.equal(s.fm(site as never).task_count, 0);
 });
+
+test("rebuilding totals sets them from the logged time", async () => {
+  const s = await setup();
+  const project = await s.projectManager.createProject(s.ws, "Site", "active", "medium", "");
+  const t = await s.task("Drifted", "site");
+  await s.tracker.addManualEntry(s.ws, t as never, 2, "2026-09-01");
+  await s.tracker.addManualEntry(s.ws, t as never, 1, "2026-09-02");
+  await settle();
+  // Someone deletes one entry by hand and fiddles with the total
+  await s.app.vault.delete(s.entries()[0]);
+  await s.app.fileManager.processFrontMatter(t, (fm) => { fm.total_hours = 99; });
+  await settle();
+
+  const { rebuildTotals } = await import("../src/managers/TotalsRebuilder");
+  const r = await rebuildTotals(s.app as never, s.ws, s.analytics, s.projectManager);
+  await settle();
+  // The deleted entry's Time Log row is still in the note, so 3 hours remain
+  assert.equal(s.fm(t).total_hours, 3);
+  assert.equal(s.fm(t).days_count, 2);
+  assert.equal(s.fm(project as never).hours, 3);
+  assert.deepEqual(r, { tasks: 1, projects: 1 });
+});
