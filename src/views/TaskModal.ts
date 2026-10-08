@@ -347,7 +347,14 @@ export class TaskModal extends Modal {
   private async submitAndClose(): Promise<void> {
     if (!this.title.trim()) { new Notice("Title is required"); return; }
     if (!this.resolveProject()) return;
-    await this.save();
+    // A failed save used to vanish into the console with the dialog still
+    // open and nothing said; now it is reported and the dialog stays
+    try {
+      await this.save();
+    } catch (err) {
+      new Notice(`Could not save the task: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
     this.close();
   }
 

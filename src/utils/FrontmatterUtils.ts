@@ -85,10 +85,15 @@ export function yamlString(value: string): string {
   return `"${String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ")}"`;
 }
 
+/**
+ * A file name from a title. Letters, marks and digits of any script are
+ * kept: only Latin and Persian/Arabic used to be, so a title such as
+ * "Проект" came out empty.
+ */
 export function slugify(title: string): string {
   return title.toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\u0600-\u06FF\-]/g, "")
+    .replace(/[^\p{L}\p{M}\p{N}-]/gu, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }

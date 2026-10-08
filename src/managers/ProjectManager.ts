@@ -1,6 +1,7 @@
-import { App, TFile, normalizePath } from "obsidian";
+import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
-import { linkSlug, slugify } from "../utils/FrontmatterUtils";
+import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
+import { uniqueNotePath } from "../utils/FileOps";
 import { todayString } from "../utils/DateUtils";
 import { isUnderAnyFolder, projectFolders, taskFolders } from "../utils/WorkspacePaths";
 
@@ -14,25 +15,28 @@ export class ProjectManager {
     priority: string,
     due: string
   ): Promise<TFile> {
-    const slug = slugify(title);
-    const path = normalizePath(`${ws.projectsFolder}/${slug}.md`);
+    // Same treatment tasks already had: a quote in the title no longer breaks
+    // the frontmatter (which hid the project from every board), a second
+    // project of the same name no longer fails to save, and a title with no
+    // usable letters still gets a file name
+    const path = uniqueNotePath(this.app, ws.projectsFolder, slugify(title) || "project");
 
     const frontmatter = `---
 type: project
-title: "${title}"
-status: "${status}"
-priority: "${priority}"
+title: ${yamlString(title.trim())}
+status: ${yamlString(status)}
+priority: ${yamlString(priority)}
 start: ""
 end: ""
 created: "${todayString()}"
-due: "${due}"
+due: ${yamlString(due)}
 tags: [project]
 hours: 0
 task_count: 0
 workspace: "[[${ws.name}]]"
 ---
 
-# ${title}
+# ${title.trim()}
 
 `;
 

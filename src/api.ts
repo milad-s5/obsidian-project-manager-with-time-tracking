@@ -2,7 +2,7 @@ import { TFile } from "obsidian";
 import type ProjectManagerPlugin from "./main";
 import { Workspace } from "./types";
 import { slugify } from "./utils/FrontmatterUtils";
-import { isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
+import { isUnderAnyFolder, matchProject, projectFolders, taskFolders } from "./utils/WorkspacePaths";
 
 /**
  * The plugin's public surface for other plugins.
@@ -94,8 +94,11 @@ export function createApi(plugin: ProjectManagerPlugin): ProjectManagerApi {
 
     async ensureProject(workspaceId, input) {
       const ws = workspaceOrThrow(workspaceId);
+      // By title first: a project's file name can carry a -2 when its title
+      // clashed with another note, so the slug alone would miss it
       const slug = slugify(input.title);
-      const existing = this.listProjects(workspaceId).find((p) => p.slug === slug);
+      const projects = this.listProjects(workspaceId);
+      const existing = matchProject(input.title, projects) ?? projects.find((p) => p.slug === slug);
       if (existing) return { slug: existing.slug, path: existing.path };
 
       const file = await plugin.projectManager.createProject(

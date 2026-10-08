@@ -43,3 +43,26 @@ test("a new task never shares its note name with an archived one", async () => {
   const data = await s.analytics.collect(s.ws);
   assert.deepEqual(data.records.map((r) => [r.taskSlug, r.projectSlug]), [["weekly-review", "alpha"]]);
 });
+
+test("a project title with quotes keeps valid frontmatter", async () => {
+  const s = await setup();
+  const p = await s.projectManager.createProject(s.ws, 'The "Big" Launch', "todo", "medium", "");
+  await settle();
+  assert.equal(s.fm(p as never).title, 'The "Big" Launch');
+  assert.equal(s.fm(p as never).type, "project");
+});
+
+test("two projects of the same name both get saved", async () => {
+  const s = await setup();
+  await s.projectManager.createProject(s.ws, "Website", "todo", "medium", "");
+  const second = await s.projectManager.createProject(s.ws, "Website", "todo", "medium", "");
+  assert.equal(second.path, "Work/Projects/website-2.md");
+});
+
+test("titles in any script make a file name", async () => {
+  const s = await setup();
+  const ru = await s.projectManager.createProject(s.ws, "Проект", "todo", "medium", "");
+  const dots = await s.projectManager.createProject(s.ws, "???", "todo", "medium", "");
+  assert.equal(ru.path, "Work/Projects/проект.md");
+  assert.equal(dots.path, "Work/Projects/project.md");
+});
