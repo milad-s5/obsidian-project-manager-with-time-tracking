@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### New
-- **Pin projects** to the top of the grouped board; the rest follow a new *Order of projects* setting (recent work, priority, unfinished tasks or name). Stored in the plugin settings, not in the notes.
+- **Pin projects** to the top of the grouped board. Tasks with no project come right after, ready to be given one; the other projects follow a new *Order of projects* setting (recent work, priority, unfinished tasks or name). Stored in the plugin settings, not in the notes.
 - The names column beside the project rows can be dragged wider or narrower; double-click resets it.
 
 ### Fixed

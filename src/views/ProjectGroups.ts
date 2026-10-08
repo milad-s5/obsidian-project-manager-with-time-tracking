@@ -27,16 +27,16 @@ export interface ProjectFacts {
 
 /**
  * The place of each project on the grouped board: pinned ones first, then
- * the rest, each by the chosen order and then by name. Tasks with no
- * project always come last. Worked out once for the whole board, so every
- * column puts its groups in the same order.
+ * the tasks with no project, so they are in view to be given one, then the
+ * rest, each by the chosen order and then by name. Worked out once for the
+ * whole board, so every column puts its groups in the same order.
  */
 export function projectRanking(facts: ProjectFacts[], order: ProjectOrder): Map<string, number> {
   const key = (f: ProjectFacts): number =>
     order === "activity" ? -f.lastActive : order === "priority" ? -f.priority : order === "open" ? -f.open : 0;
   const sorted = [...facts].sort((a, b) => {
-    if (!a.slug !== !b.slug) return a.slug ? -1 : 1;
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (!a.slug !== !b.slug) return a.slug ? 1 : -1;
     return key(a) - key(b) || a.title.localeCompare(b.title);
   });
   return new Map(sorted.map((f, i) => [f.slug, i]));

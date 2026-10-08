@@ -12,9 +12,9 @@ const facts: ProjectFacts[] = [
 const order = (o: Parameters<typeof projectRanking>[1]) =>
   [...projectRanking(facts, o).entries()].sort((a, b) => a[1] - b[1]).map(([slug]) => slug);
 
-test("pinned projects lead, no project trails, the rest follow the chosen order", () => {
-  assert.deepEqual(order("activity"), ["site", "app", "zine", "blog", ""]);
-  assert.deepEqual(order("priority"), ["site", "blog", "app", "zine", ""]);
-  assert.deepEqual(order("open"), ["site", "app", "zine", "blog", ""]);
-  assert.deepEqual(order("name"), ["site", "app", "blog", "zine", ""]);
+test("pinned projects lead, then no project, then the rest in the chosen order", () => {
+  assert.deepEqual(order("activity"), ["site", "", "app", "zine", "blog"]);
+  assert.deepEqual(order("priority"), ["site", "", "blog", "app", "zine"]);
+  assert.deepEqual(order("open"), ["site", "", "app", "zine", "blog"]);
+  assert.deepEqual(order("name"), ["site", "", "app", "blog", "zine"]);
 });
