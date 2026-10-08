@@ -46,6 +46,8 @@ Every period can be stepped backwards and forwards, so past months and years are
 
 **Group by project.** The Kanban's *By project* button groups the cards by project: a row per project across the columns, or each project's tasks kept together inside every column, as chosen in settings. Groups fold, and stay folded. Pin a project to keep it at the top. Tasks with no project come next, ready to be given one, and the other projects are ordered by recent work, priority, unfinished tasks or name. Drag the edge of the project names to fit long names on one line.
 
+![The Kanban board grouped by project, one row per project](./images/group-by-project.png)
+
 **Due dates.** A calendar-aware date picker for tasks and projects — it draws in Gregorian or Jalali, whichever the calendar setting is, so a due date reads the same everywhere on the dashboard.
 
 **Archive.** When a task or project reaches a closed status (done, cancel and quite unless you change the list in settings) it moves into an archive folder together with its time entries. Closing a project takes its tasks with it. Reopening walks it back, except that a task which is done in its own right stays put. Archived items still appear in the board and every report — only the files move.
