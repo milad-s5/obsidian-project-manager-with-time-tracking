@@ -242,7 +242,11 @@ export default class ProjectManagerPlugin extends Plugin {
     const data = ((await this.loadData()) ?? {}) as Record<string, unknown>;
     // dateFormat was a setting that nothing ever read; an old file still has it
     const { activeTimer, dateFormat: _unused, ...settings } = data;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
+    // A deep copy of the defaults: Object.assign alone shares their arrays and
+    // objects, so on a fresh install adding a workspace pushed it into
+    // DEFAULT_SETTINGS itself
+    const defaults = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as ProjectManagerSettings;
+    this.settings = Object.assign(defaults, settings);
     this.persistedTimer = activeTimer ?? null;
 
     // New installs default to Gregorian, which suits most people. But everything
@@ -258,9 +262,7 @@ export default class ProjectManagerPlugin extends Plugin {
       if (!ws.archiveFolder) ws.archiveFolder = defaultArchiveFolder(ws.rootFolder);
     }
 
-    // Object.assign is shallow — without a copy, folding a column would write
-    // into DEFAULT_SETTINGS itself
-    this.settings.collapsedColumns = { ...(this.settings.collapsedColumns ?? {}) };
+    this.settings.collapsedColumns ??= {};
 
     // The default fills this in as true, so whether it was really there has
     // to be read from what was stored

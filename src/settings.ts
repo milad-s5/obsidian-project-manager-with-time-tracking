@@ -1,9 +1,10 @@
-import { App, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, Notice, normalizePath, PluginSettingTab, Setting, TextComponent } from "obsidian";
 import ProjectManagerPlugin from "./main";
 import { DeleteBehaviour } from "./types";
 import { defaultArchiveFolder } from "./utils/WorkspacePaths";
 import { CalendarKind, WeekStart } from "./utils/Calendar";
 import { RenameStatusModal } from "./views/RenameStatusModal";
+import { ConfirmModal } from "./views/ConfirmModal";
 
 export class ProjectManagerSettingTab extends PluginSettingTab {
   plugin: ProjectManagerPlugin;
@@ -116,39 +117,19 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
 
       new Setting(wsContainer)
         .setName("Root folder")
-        .addText((text) =>
-          text.setValue(ws.rootFolder).onChange(async (value) => {
-            this.plugin.settings.workspaces[index].rootFolder = value;
-            await this.plugin.saveSettings();
-          })
-        );
+        .addText((text) => this.folderField(text, index, "rootFolder"));
 
       new Setting(wsContainer)
         .setName("Projects folder")
-        .addText((text) =>
-          text.setValue(ws.projectsFolder).onChange(async (value) => {
-            this.plugin.settings.workspaces[index].projectsFolder = value;
-            await this.plugin.saveSettings();
-          })
-        );
+        .addText((text) => this.folderField(text, index, "projectsFolder"));
 
       new Setting(wsContainer)
         .setName("Tasks folder")
-        .addText((text) =>
-          text.setValue(ws.tasksFolder).onChange(async (value) => {
-            this.plugin.settings.workspaces[index].tasksFolder = value;
-            await this.plugin.saveSettings();
-          })
-        );
+        .addText((text) => this.folderField(text, index, "tasksFolder"));
 
       new Setting(wsContainer)
         .setName("Time entries folder")
-        .addText((text) =>
-          text.setValue(ws.timeEntriesFolder).onChange(async (value) => {
-            this.plugin.settings.workspaces[index].timeEntriesFolder = value;
-            await this.plugin.saveSettings();
-          })
-        );
+        .addText((text) => this.folderField(text, index, "timeEntriesFolder"));
 
       new Setting(wsContainer)
         .setName("Archive folder")
@@ -157,15 +138,10 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
             "time entries, into Tasks / Projects / TimeEntries subfolders. They stay in " +
             "the board and the reports — only the files move. Leave empty to turn archiving off."
         )
-        .addText((text) =>
-          text
-            .setPlaceholder(defaultArchiveFolder(ws.rootFolder))
-            .setValue(ws.archiveFolder ?? "")
-            .onChange(async (value) => {
-              this.plugin.settings.workspaces[index].archiveFolder = value.trim();
-              await this.plugin.saveSettings();
-            })
-        );
+        .addText((text) => {
+          text.setPlaceholder(defaultArchiveFolder(ws.rootFolder));
+          this.folderField(text, index, "archiveFolder");
+        });
 
       new Setting(wsContainer)
         .setName("Tidy archive now")
@@ -188,10 +164,25 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
           btn
             .setButtonText("Remove workspace")
             .setWarning()
-            .onClick(async () => {
-              this.plugin.settings.workspaces.splice(index, 1);
-              await this.plugin.saveSettings();
-              this.display();
+            .onClick(() => {
+              const target = this.plugin.settings.workspaces[index];
+              new ConfirmModal(this.app, {
+                title: `Remove "${target.name}"?`,
+                body:
+                  "Only the workspace setting goes. Its folders and every task, project and " +
+                  "time entry in them stay in the vault, and adding a workspace with the same " +
+                  "name and folders brings them back.",
+                confirmText: "Remove",
+                onConfirm: async () => {
+                  this.plugin.settings.workspaces.splice(index, 1);
+                  if (!this.plugin.settings.workspaces.some((w) => w.id === this.plugin.settings.defaultWorkspaceId)) {
+                    this.plugin.settings.defaultWorkspaceId = this.plugin.settings.workspaces[0].id;
+                  }
+                  await this.plugin.saveSettings();
+                  this.plugin.refreshTimerViews();
+                  this.display();
+                },
+              }).open();
             })
         );
       }
@@ -278,5 +269,34 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+  }
+
+  /**
+   * A workspace folder field. The path is applied when the field is left,
+   * not on every keystroke, and tidied the way Obsidian writes paths; the
+   * folder is created at once. Before, a changed folder was only created at
+   * the next start-up, so the first task or time entry written to it failed.
+   */
+  private folderField(
+    text: TextComponent,
+    index: number,
+    key: "rootFolder" | "projectsFolder" | "tasksFolder" | "timeEntriesFolder" | "archiveFolder"
+  ): void {
+    text.setValue(this.plugin.settings.workspaces[index][key] ?? "");
+    text.inputEl.addEventListener("change", async () => {
+      const ws = this.plugin.settings.workspaces[index];
+      const value = normalizePath(text.getValue().trim());
+      // An empty archive folder turns archiving off; the others need a path
+      if (!value && key !== "archiveFolder") {
+        text.setValue(ws[key]);
+        return;
+      }
+      ws[key] = text.getValue().trim() ? value : "";
+      text.setValue(ws[key]);
+      await this.plugin.workspaceManager.ensureWorkspace(ws);
+      await this.plugin.archiveManager.ensureArchiveFolders(ws);
+      await this.plugin.saveSettings();
+      this.plugin.refreshTimerViews();
+    });
   }
 }
