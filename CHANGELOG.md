@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Pin projects** to the top of the grouped board; the rest follow a new *Order of projects* setting (recent work, priority, unfinished tasks or name). Stored in the plugin settings, not in the notes.
+- The names column beside the project rows can be dragged wider or narrower; double-click resets it.
+
+### Fixed
+- In project rows, a card with a long title spilled over the row lines.
+
 ## 1.5.0
 
 ### New

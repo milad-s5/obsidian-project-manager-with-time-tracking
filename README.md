@@ -44,7 +44,7 @@ Every period can be stepped backwards and forwards, so past months and years are
 
 **Filters and focus mode.** Narrow either board down by project — type part of a name or pick one from the list — by priority, or on the Kanban board by task title too. A Focus button on both boards drops everything but the *active* column; toggle it on either board and the other follows, since it is one shared switch rather than two.
 
-**Group by project.** The Kanban's *By project* button groups the cards by project: a row per project across the columns, or each project's tasks kept together inside every column, as chosen in settings. Groups fold, and stay folded.
+**Group by project.** The Kanban's *By project* button groups the cards by project: a row per project across the columns, or each project's tasks kept together inside every column, as chosen in settings. Groups fold, and stay folded. Pin a project to keep it at the top; the rest are ordered by recent work, priority, unfinished tasks or name. Drag the edge of the project names to fit long names on one line.
 
 **Due dates.** A calendar-aware date picker for tasks and projects — it draws in Gregorian or Jalali, whichever the calendar setting is, so a due date reads the same everywhere on the dashboard.
 
@@ -98,6 +98,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 
 - **Calendar**, **week start** and **board direction** (left to right or right to left)
 - **Group tasks by project** — a row per project, or groups inside each column
+- **Order of projects** — most recently worked on, project priority, most unfinished tasks or name; pinned projects come first
 - **Deleting a task or project** — to the trash, or permanently
 - **Workspaces** — name and folder for projects, tasks, time entries and the archive. Renaming a workspace updates all of its notes to match.
 - **Archive folder** per workspace, and a *Tidy archive* button for items closed before archiving existed. Leave the folder empty to turn archiving off.
