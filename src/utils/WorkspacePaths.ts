@@ -58,20 +58,48 @@ export function defaultArchiveFolder(rootFolder: string): string {
   return `${rootFolder}/Archive`;
 }
 
+export interface ProjectOption {
+  slug: string;
+  title: string;
+  /** Normalised: trimmed and lower case */
+  status: string;
+}
+
 /**
- * Every project in a workspace as {slug, title} — synchronous, so it can back
- * a filter's suggestions at toolbar-render time, before the async analytics
- * collect has run. Includes archived projects, same as everywhere else that
- * lists projects.
+ * Every project in a workspace — synchronous, so it can back a filter's
+ * suggestions at toolbar-render time, before the async analytics collect has
+ * run. Includes archived projects, same as everywhere else that lists
+ * projects.
  */
-export function listProjectOptions(app: App, ws: Workspace): { slug: string; title: string }[] {
+export function listProjectOptions(app: App, ws: Workspace): ProjectOption[] {
   const folders = projectFolders(ws);
-  const out: { slug: string; title: string }[] = [];
+  const out: ProjectOption[] = [];
   for (const file of app.vault.getMarkdownFiles()) {
     if (!isUnderAnyFolder(file.path, folders)) continue;
     const fm = app.metadataCache.getFileCache(file)?.frontmatter;
     if (fm?.type !== "project" || linkSlug(fm.workspace) !== ws.name) continue;
-    out.push({ slug: file.basename, title: String(fm.title ?? file.basename) });
+    out.push({
+      slug: file.basename,
+      title: String(fm.title ?? file.basename),
+      status: String(fm.status ?? "").trim().toLowerCase(),
+    });
   }
   return out.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/**
+ * The project a typed name means: the exact title, then the title in any
+ * case, then the file name. Spaces around either side are ignored, so a
+ * project saved as "Website " is still found by typing "Website".
+ */
+export function matchProject<T extends { slug: string; title: string }>(typed: string, options: T[]): T | null {
+  const q = typed.trim();
+  if (!q) return null;
+  const lower = q.toLowerCase();
+  return (
+    options.find((p) => p.title.trim() === q) ??
+    options.find((p) => p.title.trim().toLowerCase() === lower) ??
+    options.find((p) => p.slug.toLowerCase() === lower) ??
+    null
+  );
 }

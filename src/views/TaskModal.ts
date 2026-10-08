@@ -1,4 +1,4 @@
-import { App, Modal, TFile, Notice, Setting, normalizePath } from "obsidian";
+import { App, Modal, TFile, Notice, Setting } from "obsidian";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
@@ -9,14 +9,14 @@ import { mountDatePicker } from "./DatePicker";
 import { ConfirmModal } from "./ConfirmModal";
 import { ProjectSuggest } from "./ProjectSuggest";
 import { deleteNote, deleteWarning } from "../utils/FileOps";
-import { isUnderAnyFolder, timeEntryFolders } from "../utils/WorkspacePaths";
+import {
+  isUnderAnyFolder, listProjectOptions, matchProject, ProjectOption, timeEntryFolders,
+} from "../utils/WorkspacePaths";
+import { isArchivableStatus } from "../managers/ArchiveManager";
 import { readNoteSection, writeNoteSection } from "../utils/NoteContent";
 import { mountNotesEditor, NotesEditor } from "./NotesEditor";
 
 export class TaskModal extends Modal {
-  // Projects not yet closed — only these can be picked for a task
-  private static readonly ACTIVE_PROJECT_STATUSES = ["backlog", "todo", "active"];
-
   plugin: ProjectManagerPlugin;
   file: TFile | null;
   ws: Workspace;
@@ -30,7 +30,9 @@ export class TaskModal extends Modal {
   projectSlug = "";
   /** What is typed in the project box, resolved back to a slug on save */
   private projectText = "";
-  private projectOptions: { slug: string; title: string }[] = [];
+  /** Only a project box the user actually changed is resolved on save */
+  private projectTouched = false;
+  private projectOptions: ProjectOption[] = [];
   status = "todo";
   priority = "medium";
   due = "";
@@ -65,33 +67,17 @@ export class TaskModal extends Modal {
   }
 
   /**
-   * Projects offerable for a task: open ones, plus whichever this task already
-   * points at so that editing an old task cannot silently reassign it.
+   * Projects offerable for a task: the open ones, plus whichever this task
+   * already points at, wherever that project now lives.
    *
-   * This used to read `<root>/Projects` directly and reach into the folder's
-   * children through an `any` cast, which ignored a workspace whose projects
-   * folder had been configured elsewhere and leaned on an untyped internal.
+   * Only the active projects folder used to be read. A closed project sits in
+   * the archive, so its tasks opened with an empty project box, and saving
+   * them — even just pressing Enter — wrote an empty project over the link.
    */
-  private getProjectOptions(): { slug: string; title: string }[] {
-    const folder = normalizePath(this.ws.projectsFolder);
-    const out: { slug: string; title: string }[] = [];
-
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if (!file.path.startsWith(`${folder}/`)) continue;
-      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-      if (fm?.type !== "project") continue;
-
-      const slug = file.basename;
-      const title = String(fm.title ?? slug);
-      if (slug === this.projectSlug) {
-        out.push({ slug, title });
-        continue;
-      }
-      if (TaskModal.ACTIVE_PROJECT_STATUSES.includes(normalizeStatus(fm.status))) {
-        out.push({ slug, title });
-      }
-    }
-    return out.sort((a, b) => a.title.localeCompare(b.title));
+  private getProjectOptions(): ProjectOption[] {
+    return listProjectOptions(this.app, this.ws).filter(
+      (p) => p.slug === this.projectSlug || !isArchivableStatus(p.status)
+    );
   }
 
   async onOpen(): Promise<void> {
@@ -129,15 +115,20 @@ export class TaskModal extends Modal {
     // showed file slugs rather than the titles shown everywhere else.
     this.projectOptions = this.getProjectOptions();
     const projectSetting = new Setting(contentEl).setName("Project");
-    if (!this.projectOptions.length) {
+    if (!this.projectOptions.length && !this.projectSlug) {
       projectSetting.setDesc("No open projects in this workspace yet.");
     } else {
       projectSetting.addText((t) => {
         t.setPlaceholder("Type or pick a project");
+        // A project that no longer exists still shows by name, so the link
+        // is visible rather than looking empty
         const current = this.projectOptions.find((p) => p.slug === this.projectSlug);
-        t.setValue(current ? current.title : "");
-        this.projectText = current ? current.title : "";
-        t.onChange((v) => (this.projectText = v));
+        this.projectText = current ? current.title : this.projectSlug;
+        t.setValue(this.projectText);
+        t.onChange((v) => {
+          this.projectText = v;
+          this.projectTouched = true;
+        });
 
         new ProjectSuggest(
           this.app,
@@ -146,6 +137,7 @@ export class TaskModal extends Modal {
           (option) => {
             this.projectText = option.title;
             this.projectSlug = option.slug;
+            this.projectTouched = true;
           }
         );
       });
@@ -366,15 +358,14 @@ export class TaskModal extends Modal {
    * project, which is the kind of thing only noticed weeks later.
    */
   private resolveProject(): boolean {
+    // Left alone, the link stays exactly as it was
+    if (!this.projectTouched) return true;
     const typed = this.projectText.trim();
     if (!typed) {
       this.projectSlug = "";
       return true;
     }
-    const match =
-      this.projectOptions.find((p) => p.title === typed) ??
-      this.projectOptions.find((p) => p.title.toLowerCase() === typed.toLowerCase()) ??
-      this.projectOptions.find((p) => p.slug.toLowerCase() === typed.toLowerCase());
+    const match = matchProject(typed, this.projectOptions);
     if (!match) {
       new Notice(`No open project called "${typed}"`);
       return false;

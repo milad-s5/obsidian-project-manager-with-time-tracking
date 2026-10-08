@@ -5,7 +5,7 @@ import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
 import { renderBoardColumn } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
-import { isArchivedPath, listProjectOptions } from "../utils/WorkspacePaths";
+import { isArchivedPath, listProjectOptions, matchProject } from "../utils/WorkspacePaths";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
@@ -210,10 +210,7 @@ export class KanbanView extends ItemView {
       const title = input.value.trim();
       if (!title) return;
       input.value = "";
-      const query = this.filterProject.toLowerCase();
-      const project = query
-        ? listProjectOptions(this.app, this.currentWorkspace).find((p) => p.title.toLowerCase() === query)
-        : undefined;
+      const project = matchProject(this.filterProject, listProjectOptions(this.app, this.currentWorkspace)) ?? undefined;
       await this.plugin.taskManager.createTask(
         this.currentWorkspace,
         title,
