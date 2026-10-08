@@ -100,6 +100,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 
 - **Calendar**, **week start** and **board direction** (left to right or right to left)
 - **Group tasks by project** — a row per project, or groups inside each column
+- **Hide projects on the task board** — projects in these statuses, and their tasks, stay off the Kanban (done, cancel and quite by default)
 - **Order of projects** — most recently worked on, project priority, most unfinished tasks or name; pinned projects come first
 - **Deleting a task or project** — to the trash, or permanently
 - **Workspaces** — name and folder for projects, tasks, time entries and the archive. Renaming a workspace updates all of its notes to match.

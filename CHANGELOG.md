@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New
+- Click a project's name on the task board, on a card or a project row, to open the project.
+- **Hide projects on the task board**, a setting: projects in these statuses, and their tasks, are left off the Kanban. Done, cancel and quite by default.
+
+### Fixed
+- On a right-to-left board grouped by project, a folded column's name sat at the bottom of the bar, out of sight.
+
 ## 1.5.3
 
 ### Fixed
