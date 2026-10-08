@@ -40,7 +40,7 @@ export class KanbanView extends ItemView {
   }
 
   getViewType(): string { return KANBAN_VIEW_TYPE; }
-  getDisplayText(): string { return "Kanban Board"; }
+  getDisplayText(): string { return "Kanban board"; }
   getIcon(): string { return "layout-kanban"; }
 
   async onOpen(): Promise<void> {
@@ -96,7 +96,7 @@ export class KanbanView extends ItemView {
 
   async render(): Promise<void> {
     this.containerEl.toggleClass("pm-fullscreen", this.plugin.settings.boardFullscreen);
-    const container = this.containerEl.children[1] as HTMLElement;
+    const container = this.contentEl;
     // A full render rebuilds every element, including whichever filter input
     // was mid-typing — so its focus and cursor are captured here and put back
     // on the new element afterwards, rather than silently dropping the field.
@@ -184,8 +184,12 @@ export class KanbanView extends ItemView {
         collapsed: this.plugin.isColumnCollapsed("tasks", status),
         onToggle: (collapsed) => void this.plugin.setColumnCollapsed("tasks", status, collapsed),
         onDrop: async (taskPath) => {
-          const file = this.app.vault.getAbstractFileByPath(taskPath) as TFile | null;
-          if (!file) return;
+          // Only a task belongs here: a project card dragged across from the
+          // Projects board in another pane used to get the task status written
+          // into it
+          const file = this.app.vault.getAbstractFileByPath(taskPath);
+          if (!(file instanceof TFile)) return;
+          if (this.app.metadataCache.getFileCache(file)?.frontmatter?.type !== "task") return;
           await updateFrontmatterFields(this.app, file, { status });
           await this.plugin.syncArchiveFor(this.currentWorkspace, file);
           await this.render();
@@ -526,7 +530,7 @@ export class KanbanView extends ItemView {
     // Project dashboard button
     actions.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Project Dashboard" })
       .addEventListener("click", () => {
-        this.plugin.openProjectDashboard();
+        void this.plugin.openProjectDashboard();
       });
 
     // A way out when a card is showing something stale. The board redraws on

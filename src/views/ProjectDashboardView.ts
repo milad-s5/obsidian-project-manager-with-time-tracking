@@ -78,7 +78,7 @@ export class ProjectDashboardView extends ItemView {
   }
 
   getViewType(): string { return PROJECT_DASHBOARD_VIEW_TYPE; }
-  getDisplayText(): string { return "Project Dashboard"; }
+  getDisplayText(): string { return "Project dashboard"; }
   getIcon(): string { return "folder-open"; }
 
   async onOpen(): Promise<void> {
@@ -129,7 +129,7 @@ export class ProjectDashboardView extends ItemView {
 
   async render(): Promise<void> {
     this.containerEl.toggleClass("pm-fullscreen", this.plugin.settings.boardFullscreen);
-    const container = this.containerEl.children[1] as HTMLElement;
+    const container = this.contentEl;
     const prevScroll = container.querySelector<HTMLElement>(".pm-db-scroll");
     if (prevScroll) this.scrollTop = prevScroll.scrollTop;
     // A full render rebuilds every element, including whichever filter input
@@ -267,7 +267,7 @@ export class ProjectDashboardView extends ItemView {
       .addEventListener("click", () => this.plugin.openNewProjectModal(this.currentWorkspace));
 
     actions.createEl("button", { cls: "pm-btn pm-btn-secondary", text: "Kanban" })
-      .addEventListener("click", () => this.plugin.openKanban());
+      .addEventListener("click", () => void this.plugin.openKanban());
 
     renderTimerBar(toolbar, this.plugin, this.currentWorkspace, () => void this.render());
   }
@@ -1027,8 +1027,11 @@ export class ProjectDashboardView extends ItemView {
         collapsed: this.plugin.isColumnCollapsed("projects", status),
         onToggle: (collapsed) => void this.plugin.setColumnCollapsed("projects", status, collapsed),
         onDrop: async (projPath) => {
-          const file = this.app.vault.getAbstractFileByPath(projPath) as TFile | null;
-          if (!file) return;
+          // Only a project belongs here, not a task card dragged across from
+          // the Kanban in another pane
+          const file = this.app.vault.getAbstractFileByPath(projPath);
+          if (!(file instanceof TFile)) return;
+          if (this.app.metadataCache.getFileCache(file)?.frontmatter?.type !== "project") return;
           await updateFrontmatterFields(this.app, file, { status });
           await this.plugin.syncArchiveFor(this.currentWorkspace, file);
           this.plugin.refreshProjectDashboard();

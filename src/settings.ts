@@ -210,7 +210,7 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
     );
 
     // Statuses
-    new Setting(containerEl).setName("Task Statuses").setHeading();
+    new Setting(containerEl).setName("Task statuses").setHeading();
     new Setting(containerEl)
       .setName("Statuses")
       .setDesc("Comma-separated list")

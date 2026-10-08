@@ -80,11 +80,15 @@ export default class ProjectManagerPlugin extends Plugin {
     await this.migrateStatusNames();
     await this.addBacklogStatus();
 
-    // Ensure all workspace folders exist
-    for (const ws of this.settings.workspaces) {
-      await this.workspaceManager.ensureWorkspace(ws);
-      await this.archiveManager.ensureArchiveFolders(ws);
-    }
+    // Ensure all workspace folders exist — once the vault has finished
+    // loading, as Obsidian asks, so start-up is not held up and a folder is
+    // not "created" before the vault has had a chance to list it
+    this.app.workspace.onLayoutReady(async () => {
+      for (const ws of this.settings.workspaces) {
+        await this.workspaceManager.ensureWorkspace(ws);
+        await this.archiveManager.ensureArchiveFolders(ws);
+      }
+    });
 
     // Register views
     this.registerView(KANBAN_VIEW_TYPE, (leaf) => new KanbanView(leaf, this));
@@ -94,19 +98,19 @@ export default class ProjectManagerPlugin extends Plugin {
     // Commands
     this.addCommand({
       id: "open-kanban",
-      name: "Open Kanban Board",
-      callback: () => this.openKanban(),
+      name: "Open kanban board",
+      callback: () => void this.openKanban(),
     });
 
     this.addCommand({
       id: "new-task",
-      name: "New Task",
+      name: "New task",
       callback: () => this.openNewTaskModal(this.getCurrentWorkspace()),
     });
 
     this.addCommand({
       id: "new-project",
-      name: "New Project",
+      name: "New project",
       callback: () => this.openNewProjectModal(this.getCurrentWorkspace()),
     });
 
@@ -141,13 +145,13 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "open-project-dashboard",
-      name: "Open Project Dashboard",
-      callback: () => this.openProjectDashboard(),
+      name: "Open project dashboard",
+      callback: () => void this.openProjectDashboard(),
     });
 
     this.addCommand({
       id: "toggle-focus-mode",
-      name: "Toggle Focus Mode (active items only)",
+      name: "Toggle focus mode (active items only)",
       callback: () => this.toggleFocusMode(),
     });
 
@@ -159,7 +163,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "start-timer",
-      name: "Start Timer (active file)",
+      name: "Start timer on the open note",
       callback: async () => {
         const file = this.app.workspace.getActiveFile();
         if (!file) { new Notice("No active file"); return; }
@@ -178,7 +182,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "pause-timer",
-      name: "Pause / Resume Timer",
+      name: "Pause or resume the timer",
       callback: () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
         this.timeTracker.togglePause();
@@ -193,7 +197,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "stop-timer",
-      name: "Stop Timer",
+      name: "Stop the timer",
       callback: async () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
         const ws = this.getCurrentWorkspace();
@@ -204,7 +208,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "reset-timer",
-      name: "Reset Timer (keep running from zero)",
+      name: "Reset the timer (keep running from zero)",
       callback: () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
         resetTimerWithConfirm(this.app, this, () => this.refreshTimerViews());
@@ -213,7 +217,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     this.addCommand({
       id: "discard-timer",
-      name: "Discard Timer (log nothing)",
+      name: "Discard the timer (log nothing)",
       callback: () => {
         if (!this.timeTracker.isRunning()) { new Notice("No timer running"); return; }
         const title = this.timeTracker.getActiveTimer()?.taskTitle;
@@ -224,8 +228,8 @@ export default class ProjectManagerPlugin extends Plugin {
     });
 
     // Ribbon icons for quick access
-    this.addRibbonIcon("folder-open", "Open Kanban Board", () => this.openKanban());
-    this.addRibbonIcon("folder-open", "Open Project Dashboard", () => this.openProjectDashboard());
+    this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());
+    this.addRibbonIcon("layout-dashboard", "Open project dashboard", () => void this.openProjectDashboard());
 
     // Settings tab
     this.addSettingTab(new ProjectManagerSettingTab(this.app, this));
@@ -403,12 +407,12 @@ export default class ProjectManagerPlugin extends Plugin {
   async openKanban(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(KANBAN_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getLeaf(false);
     await leaf.setViewState({ type: KANBAN_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   refreshKanban(): void {
@@ -446,15 +450,15 @@ export default class ProjectManagerPlugin extends Plugin {
     modal.open();
   }
 
-  openProjectDashboard(): void {
+  async openProjectDashboard(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(PROJECT_DASHBOARD_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getLeaf(false);
-    void leaf.setViewState({ type: PROJECT_DASHBOARD_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await leaf.setViewState({ type: PROJECT_DASHBOARD_VIEW_TYPE, active: true });
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   /**
