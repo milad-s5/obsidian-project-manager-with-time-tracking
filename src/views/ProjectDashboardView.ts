@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, TFile, Menu } from "obsidian";
-import { updateFrontmatterFields } from "../utils/FrontmatterUtils";
+import { endDateFields, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { statusColor, priorityColor, isBacklogStatus, isMutedStatus } from "../utils/StatusColors";
@@ -1097,7 +1097,8 @@ export class ProjectDashboardView extends ItemView {
           const file = this.app.vault.getAbstractFileByPath(projPath);
           if (!(file instanceof TFile)) return;
           if (this.app.metadataCache.getFileCache(file)?.frontmatter?.type !== "project") return;
-          await updateFrontmatterFields(this.app, file, { status });
+          const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+          await updateFrontmatterFields(this.app, file, { status, ...endDateFields(fm, status) });
           await this.plugin.syncArchiveFor(this.currentWorkspace, file);
           this.plugin.refreshProjectDashboard();
           this.plugin.refreshKanban();

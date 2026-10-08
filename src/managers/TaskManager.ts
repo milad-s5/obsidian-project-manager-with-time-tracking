@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
+import { DONE_STATUS, normalizeStatus } from "../utils/StatusColors";
 import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
 import { todayString } from "../utils/DateUtils";
 import { toISODate } from "../utils/Jalali";
@@ -37,7 +38,7 @@ project: ${projectSlug ? `"[[${projectSlug}]]"` : '""'}
 status: ${yamlString(status)}
 priority: ${yamlString(priority)}
 start: ""
-end: ""
+end: ${normalizeStatus(status) === DONE_STATUS ? `"${todayString()}"` : '""'}
 created: "${todayString()}"
 due: ${yamlString(due)}
 total_hours: 0

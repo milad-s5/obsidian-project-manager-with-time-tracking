@@ -61,6 +61,8 @@ test("moving a task to done fills its end date, reopening it empties it", async 
 test("a task closed before the date was kept counts as done on its last logged day", async () => {
   const s = await setup();
   const t = await s.task("Old", "", "done");
+  // As a note written before the end date was kept
+  await s.app.fileManager.processFrontMatter(t, (fm) => { fm.end = ""; });
   await s.tracker.addManualEntry(s.ws, t as never, 1, "2026-09-03");
   await s.tracker.addManualEntry(s.ws, t as never, 1, "2026-09-01");
   await settle();

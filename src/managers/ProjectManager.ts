@@ -29,7 +29,7 @@ title: ${yamlString(title.trim())}
 status: ${yamlString(status)}
 priority: ${yamlString(priority)}
 start: ""
-end: ""
+end: ${isDoneStatus(status) ? `"${todayString()}"` : '""'}
 created: "${todayString()}"
 due: ${yamlString(due)}
 tags: [project]

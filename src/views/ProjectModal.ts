@@ -1,7 +1,7 @@
 import { App, Modal, TFile, Notice, Setting } from "obsidian";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
-import { linkSlug, renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
+import { endDateFields, linkSlug, renameHeading, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { isMutedStatus, normalizeStatus, statusColor } from "../utils/StatusColors";
 import { mountDatePicker } from "./DatePicker";
 import { formatHours } from "./DashboardCharts";
@@ -268,6 +268,7 @@ export class ProjectModal extends Modal {
       await updateFrontmatterFields(this.app, this.file, {
         title: this.title,
         status: this.status,
+        ...endDateFields(this.app.metadataCache.getFileCache(this.file)?.frontmatter, this.status),
         priority: this.priority,
         due: this.due,
         ...this.extraValues,

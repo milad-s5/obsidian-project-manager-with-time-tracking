@@ -1,4 +1,19 @@
 import { App, TFile } from "obsidian";
+import { todayString } from "./DateUtils";
+import { DONE_STATUS, normalizeStatus } from "./StatusColors";
+
+/**
+ * The `end` to write along with a new status: the day it was moved to done,
+ * kept while it stays done, and emptied again when it is reopened. Written
+ * in the same save as the status, so the note is not written twice.
+ */
+export function endDateFields(fm: Record<string, unknown> | undefined, status: string): { end?: string } {
+  const wasDone = normalizeStatus(fm?.status) === DONE_STATUS;
+  if (normalizeStatus(status) === DONE_STATUS) {
+    return wasDone && /^\d{4}-\d{2}-\d{2}/.test(String(fm?.end ?? "")) ? {} : { end: todayString() };
+  }
+  return wasDone ? { end: "" } : {};
+}
 
 export async function updateFrontmatterFields(
   app: App,
