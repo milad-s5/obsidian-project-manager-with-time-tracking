@@ -1090,5 +1090,5 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 /* ===== Utility ===== */
 /* Toggled from code with addClass/toggleClass rather than writing element
    styles directly, which the plugin guidelines disallow. */
-.is-hidden { display: none; }
+.pm-hidden { display: none; }
 .pm-db-cards-spaced { margin-top: 14px; }

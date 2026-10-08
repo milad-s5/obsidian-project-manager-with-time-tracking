@@ -31,7 +31,7 @@ export class ChartTooltip {
 
   constructor(private host: HTMLElement) {
     this.el = host.createDiv({ cls: "pm-db-tip" });
-    this.el.addClass("is-hidden");
+    this.el.addClass("pm-hidden");
   }
 
   /** Attaches the tooltip to a mark — for the mouse and for keyboard focus alike */
@@ -55,7 +55,7 @@ export class ChartTooltip {
     lines.forEach((line, i) => {
       this.el.createDiv({ cls: i === 0 ? "pm-db-tip-head" : "pm-db-tip-row", text: line });
     });
-    this.el.removeClass("is-hidden");
+    this.el.removeClass("pm-hidden");
 
     const hostBox = this.host.getBoundingClientRect();
     const markBox = mark.getBoundingClientRect();
@@ -69,7 +69,7 @@ export class ChartTooltip {
     this.el.setCssStyles({ left: `${left}px`, top: `${top}px` });
   }
 
-  hide(): void { this.el.addClass("is-hidden"); }
+  hide(): void { this.el.addClass("pm-hidden"); }
 }
 
 // ── Chart card and the table-view toggle ────────────────────────────────
@@ -90,15 +90,15 @@ export function chartCard(parent: HTMLElement, title: string, subtitle?: string)
 
   const body = root.createDiv({ cls: "pm-db-cardbody" });
   const tableWrap = root.createDiv({ cls: "pm-db-tablewrap" });
-  tableWrap.addClass("is-hidden");
+  tableWrap.addClass("pm-hidden");
 
   const toggle = head.createEl("button", { cls: "pm-db-toggle", text: "Table" });
   toggle.setAttribute("aria-pressed", "false");
-  toggle.addClass("is-hidden");
+  toggle.addClass("pm-hidden");
   toggle.addEventListener("click", () => {
-    const showTable = tableWrap.hasClass("is-hidden");
-    tableWrap.toggleClass("is-hidden", !showTable);
-    body.toggleClass("is-hidden", showTable);
+    const showTable = tableWrap.hasClass("pm-hidden");
+    tableWrap.toggleClass("pm-hidden", !showTable);
+    body.toggleClass("pm-hidden", showTable);
     toggle.textContent = showTable ? "Chart" : "Table";
     toggle.setAttribute("aria-pressed", String(showTable));
   });
@@ -116,7 +116,7 @@ export function chartCard(parent: HTMLElement, title: string, subtitle?: string)
         const tr = tbody.createEl("tr");
         r.forEach((cell) => tr.createEl("td", { text: String(cell) }));
       });
-      toggle.removeClass("is-hidden");
+      toggle.removeClass("pm-hidden");
     },
   };
 }

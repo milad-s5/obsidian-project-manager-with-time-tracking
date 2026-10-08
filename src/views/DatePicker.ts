@@ -27,7 +27,7 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   trigger.createSpan({ cls: "pm-dp-trigger-icon", text: "📅" });
   const clearBtn = trigger.createSpan({ cls: "pm-dp-clear", text: "✕", attr: { "aria-label": "Clear date" } });
 
-  const panel = container.createDiv({ cls: "pm-dp-panel is-hidden" });
+  const panel = container.createDiv({ cls: "pm-dp-panel pm-hidden" });
   panel.setAttribute("dir", cal.kind === "jalali" ? "rtl" : "ltr");
   // The host modal treats Enter as "submit" wherever it lands. Inside the panel
   // Enter should only activate whichever button is focused (day cell, nav, foot).
@@ -38,12 +38,12 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   const syncLabel = (): void => {
     label.setText(value ? cal.label(value) : opts.placeholder ?? "Select date…");
     label.toggleClass("is-empty", !value);
-    clearBtn.toggleClass("is-hidden", !value);
+    clearBtn.toggleClass("pm-hidden", !value);
   };
   syncLabel();
 
   const closePanel = (): void => {
-    panel.addClass("is-hidden");
+    panel.addClass("pm-hidden");
     document.removeEventListener("mousedown", onOutsideClick, true);
     document.removeEventListener("keydown", onKeydown, true);
   };
@@ -56,7 +56,7 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   const openPanel = (): void => {
     view = cal.fromISO(value || todayISO());
     renderPanel();
-    panel.removeClass("is-hidden");
+    panel.removeClass("pm-hidden");
     document.addEventListener("mousedown", onOutsideClick, true);
     document.addEventListener("keydown", onKeydown, true);
   };
@@ -121,7 +121,7 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   }
 
   trigger.addEventListener("click", () => {
-    if (panel.hasClass("is-hidden")) openPanel();
+    if (panel.hasClass("pm-hidden")) openPanel();
     else closePanel();
   });
   trigger.addEventListener("keydown", (e: KeyboardEvent) => {
