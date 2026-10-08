@@ -69,9 +69,30 @@ export function priorityColor(priority: string): string {
   return PRIORITY_TOKENS[(priority ?? "").toLowerCase()] ?? "var(--text-faint)";
 }
 
-// These statuses no longer need attention every time — they are shown muted
-const MUTED_STATUSES = new Set(["done", "cancel", "quite"]);
+/** The status that counts as finished, for progress and "done of" counts */
+export const DONE_STATUS = "done";
 
+export const DEFAULT_CLOSED_STATUSES = ["done", "cancel", "quite"];
+
+/**
+ * Statuses that close a task or project: archived, shown muted, and left
+ * out of open work. The set comes from settings, and the archive, the
+ * dashboard and both boards all read it from here. It used to be written
+ * out separately in three places, none of which followed the status list,
+ * so a renamed or added closing status was never treated as closed.
+ */
+let closedStatuses = new Set(DEFAULT_CLOSED_STATUSES);
+
+export function setClosedStatuses(list: string[]): void {
+  // Done always closes, whatever the list says
+  closedStatuses = new Set([DONE_STATUS, ...list.map((s) => normalizeStatus(s)).filter(Boolean)]);
+}
+
+export function isClosedStatus(status: unknown): boolean {
+  return closedStatuses.has(normalizeStatus(status));
+}
+
+/** Closed statuses no longer need attention every time — they are shown muted */
 export function isMutedStatus(status: string): boolean {
-  return MUTED_STATUSES.has(normalizeStatus(status));
+  return isClosedStatus(status);
 }

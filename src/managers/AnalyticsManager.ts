@@ -8,7 +8,7 @@
 import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
 import { toISODate, todayISO, addDays, daysBetween } from "../utils/Jalali";
-import { isBacklogStatus, normalizeStatus } from "../utils/StatusColors";
+import { DONE_STATUS, isBacklogStatus, isClosedStatus, normalizeStatus } from "../utils/StatusColors";
 import { linkSlug } from "../utils/FrontmatterUtils";
 import {
   isArchivedPath, isUnderAnyFolder, projectFolders, taskFolders, timeEntryFolders,
@@ -68,11 +68,8 @@ export interface AnalyticsData {
   lastISO: string | null;
 }
 
-const DONE_STATUSES = new Set(["done"]);
-const CLOSED_STATUSES = new Set(["done", "cancel", "quite"]);
-
-export function isDoneStatus(status: string): boolean { return DONE_STATUSES.has(status); }
-export function isClosedStatus(status: string): boolean { return CLOSED_STATUSES.has(status); }
+export function isDoneStatus(status: string): boolean { return normalizeStatus(status) === DONE_STATUS; }
+export { isClosedStatus };
 /** Taken on and not finished — neither closed nor still sitting in the backlog */
 export function isOpenStatus(status: string): boolean {
   return !isClosedStatus(status) && !isBacklogStatus(status);

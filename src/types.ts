@@ -32,6 +32,8 @@ export interface ProjectManagerSettings {
    * (backlog folded, everything else open).
    */
   collapsedColumns: Record<string, boolean>;
+  /** Statuses that close a task or project; "done" always does */
+  closedStatuses: string[];
   /**
    * Set once "backlog" has been offered to this vault. An existing vault gets
    * it added to its statuses on the first load after the update; the flag is
@@ -66,6 +68,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   weekStart: "auto",
   deleteBehaviour: "trash",
   collapsedColumns: {},
+  closedStatuses: ["done", "cancel", "quite"],
   backlogAdded: true,
 };
 

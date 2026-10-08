@@ -20,7 +20,7 @@ import { linkSlug } from "./utils/FrontmatterUtils";
 import { NoteScanner } from "./utils/NoteContent";
 import { resetTimerWithConfirm, showStopNotice } from "./views/TimerBar";
 import { BoardKind } from "./views/BoardColumn";
-import { BACKLOG_STATUS, isBacklogStatus } from "./utils/StatusColors";
+import { BACKLOG_STATUS, DEFAULT_CLOSED_STATUSES, isBacklogStatus, setClosedStatuses } from "./utils/StatusColors";
 
 export default class ProjectManagerPlugin extends Plugin {
   // Assigned in onload, which Obsidian always runs before anything reads them
@@ -267,6 +267,9 @@ export default class ProjectManagerPlugin extends Plugin {
     if (isUpgrade && settings.backlogAdded === undefined) {
       this.settings.backlogAdded = false;
     }
+
+    this.settings.closedStatuses = [...(this.settings.closedStatuses ?? DEFAULT_CLOSED_STATUSES)];
+    setClosedStatuses(this.settings.closedStatuses);
   }
 
   /**
@@ -303,6 +306,7 @@ export default class ProjectManagerPlugin extends Plugin {
     // view re-reads it — otherwise switching calendars appears to do nothing
     // until the next reload.
     this.rebuildCalendar();
+    setClosedStatuses(this.settings.closedStatuses);
     await this.savePluginData();
   }
 

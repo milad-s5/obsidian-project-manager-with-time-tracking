@@ -152,7 +152,7 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
       new Setting(wsContainer)
         .setName("Archive folder")
         .setDesc(
-          "Tasks and projects that reach done / cancel / quite move here with their " +
+          "Tasks and projects that reach a closed status move here with their " +
             "time entries, into Tasks / Projects / TimeEntries subfolders. They stay in " +
             "the board and the reports — only the files move. Leave empty to turn archiving off."
         )
@@ -230,6 +230,24 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
             // A capitalised status used to be lowered only at the next
             // reload, and until then its column matched no task at all.
             this.plugin.settings.statuses = [
+              ...new Set(value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
+            ];
+            await this.plugin.saveSettings();
+            this.plugin.refreshTimerViews();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Closed statuses")
+      .setDesc(
+        "Statuses that finish a task or project: it moves to the archive, shows muted, " +
+          "and leaves open tasks and overdue. Done always counts."
+      )
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.closedStatuses.join(", "))
+          .onChange(async (value) => {
+            this.plugin.settings.closedStatuses = [
               ...new Set(value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
             ];
             await this.plugin.saveSettings();

@@ -1,6 +1,6 @@
 import { App, TFile, normalizePath } from "obsidian";
 import { Workspace } from "../types";
-import { normalizeStatus } from "../utils/StatusColors";
+import { isClosedStatus } from "../utils/StatusColors";
 import { linkSlug } from "../utils/FrontmatterUtils";
 import { WorkspaceManager } from "./WorkspaceManager";
 import {
@@ -8,11 +8,9 @@ import {
   isArchivedPath, projectFolders, taskFolders, timeEntryFolders,
 } from "../utils/WorkspacePaths";
 
-/** Closed statuses — these are the ones that get archived */
-const CLOSED = new Set(["done", "cancel", "quite"]);
-
+/** Closed statuses, from settings, are the ones that get archived */
 export function isArchivableStatus(status: unknown): boolean {
-  return CLOSED.has(normalizeStatus(status));
+  return isClosedStatus(status);
 }
 
 export interface ArchiveResult {
