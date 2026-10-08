@@ -3,10 +3,12 @@
 // else in the dashboard. The value handed in and out is always a Gregorian
 // ISO string (YYYY-MM-DD) — the calendar only changes how it is displayed.
 
+import { App, Scope } from "obsidian";
 import { Calendar } from "../utils/Calendar";
 import { todayISO } from "../utils/Jalali";
 
 export interface DatePickerOptions {
+  app: App;
   cal: Calendar;
   value: string;
   placeholder?: string;
@@ -27,7 +29,12 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   trigger.createSpan({ cls: "pm-dp-trigger-icon", text: "📅" });
   const clearBtn = trigger.createSpan({ cls: "pm-dp-clear", text: "✕", attr: { "aria-label": "Clear date" } });
 
-  const panel = container.createDiv({ cls: "pm-dp-panel pm-hidden" });
+  // The panel is laid over the page while open, not inside the field: a field
+  // low in a dialog would otherwise have its calendar cut off by the dialog's
+  // scroll area, and the month had to be scrolled into view
+  const doc = container.ownerDocument;
+  const panel = doc.body.createDiv({ cls: "pm-dp-panel pm-hidden" });
+  panel.detach();
   panel.setAttribute("dir", cal.kind === "jalali" ? "rtl" : "ltr");
   // The host modal treats Enter as "submit" wherever it lands. Inside the panel
   // Enter should only activate whichever button is focused (day cell, nav, foot).
@@ -42,23 +49,61 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
   };
   syncLabel();
 
+  const win = doc.defaultView ?? window;
   const closePanel = (): void => {
     panel.addClass("pm-hidden");
-    document.removeEventListener("mousedown", onOutsideClick, true);
-    document.removeEventListener("keydown", onKeydown, true);
+    panel.detach();
+    doc.removeEventListener("mousedown", onOutsideClick, true);
+    opts.app.keymap.popScope(keys);
+    win.removeEventListener("resize", closePanel);
+    doc.removeEventListener("scroll", onScroll, true);
+    gone.disconnect();
   };
+  // The dialog holding the field closed while the panel was open
+  const gone = new MutationObserver(() => { if (!container.isConnected) closePanel(); });
   const onOutsideClick = (e: MouseEvent): void => {
-    if (!container.contains(e.target as Node)) closePanel();
+    const target = e.target as Node;
+    if (!container.contains(target) && !panel.contains(target)) closePanel();
   };
-  const onKeydown = (e: KeyboardEvent): void => {
-    if (e.key === "Escape") { e.preventDefault(); closePanel(); }
+  // While open, Escape closes the calendar rather than the dialog around it
+  const keys = new Scope(opts.app.scope);
+  keys.register([], "Escape", () => { closePanel(); return false; });
+  // Scrolling whatever holds the field would leave the panel behind
+  const onScroll = (e: Event): void => {
+    if (!panel.contains(e.target as Node)) closePanel();
   };
+
+  /** Below the field, or above it when there is more room there, always on screen */
+  const place = (): void => {
+    const margin = 8;
+    const gap = 6;
+    const r = trigger.getBoundingClientRect();
+    const w = panel.offsetWidth;
+    const h = panel.offsetHeight;
+    const vw = doc.documentElement.clientWidth;
+    const vh = doc.documentElement.clientHeight;
+    const below = vh - r.bottom - gap - margin;
+    const above = r.top - gap - margin;
+    let top = h <= below || below >= above ? r.bottom + gap : r.top - gap - h;
+    top = Math.max(margin, Math.min(top, vh - h - margin));
+    // Settings put their controls on the right, so the panel lines up with the field's right edge
+    let left = r.right - w;
+    left = Math.max(margin, Math.min(left, vw - w - margin));
+    panel.style.top = `${Math.round(top)}px`;
+    panel.style.left = `${Math.round(left)}px`;
+  };
+
   const openPanel = (): void => {
     view = cal.fromISO(value || todayISO());
     renderPanel();
+    doc.body.appendChild(panel);
     panel.removeClass("pm-hidden");
-    document.addEventListener("mousedown", onOutsideClick, true);
-    document.addEventListener("keydown", onKeydown, true);
+    place();
+    doc.addEventListener("mousedown", onOutsideClick, true);
+    opts.app.keymap.pushScope(keys);
+    win.addEventListener("resize", closePanel);
+    doc.addEventListener("scroll", onScroll, true);
+    gone.observe(doc.body, { childList: true });
   };
 
   const pick = (iso: string): void => {
@@ -118,10 +163,12 @@ export function mountDatePicker(container: HTMLElement, opts: DatePickerOptions)
     todayBtn.addEventListener("click", (e) => { e.stopPropagation(); pick(today); });
     const clear = foot.createEl("button", { cls: "pm-dp-footbtn", text: "Clear", attr: { type: "button" } });
     clear.addEventListener("click", (e) => { e.stopPropagation(); pick(""); });
+    // A month with an extra week is taller
+    if (panel.isConnected) place();
   }
 
   trigger.addEventListener("click", () => {
-    if (panel.hasClass("pm-hidden")) openPanel();
+    if (!panel.isConnected || panel.hasClass("pm-hidden")) openPanel();
     else closePanel();
   });
   trigger.addEventListener("keydown", (e: KeyboardEvent) => {

@@ -159,6 +159,7 @@ export class TaskModal extends Modal {
 
     const dueSetting = new Setting(contentEl).setName("Due date");
     mountDatePicker(dueSetting.controlEl, {
+      app: this.app,
       cal: this.plugin.calendar,
       value: this.due,
       onChange: (v) => (this.due = v),
@@ -261,6 +262,7 @@ export class TaskModal extends Modal {
 
       const dateSetting = new Setting(manualDiv).setName("Date");
       mountDatePicker(dateSetting.controlEl, {
+        app: this.app,
         cal: this.plugin.calendar,
         value: this.manualDate,
         placeholder: "Today",

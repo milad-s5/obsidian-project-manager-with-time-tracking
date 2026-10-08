@@ -116,6 +116,7 @@ class EditTimeModal extends Modal {
 
     const daySetting = new Setting(contentEl).setName("Day");
     mountDatePicker(daySetting.controlEl, {
+      app: this.app,
       cal: this.plugin.calendar,
       value: this.day,
       onChange: (v) => (this.day = v || this.day),
