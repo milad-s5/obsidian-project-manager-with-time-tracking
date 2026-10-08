@@ -34,6 +34,8 @@ export interface ProjectManagerSettings {
   collapsedColumns: Record<string, boolean>;
   /** Statuses that close a task or project; "done" always does */
   closedStatuses: string[];
+  /** Boards fill the whole window. One switch for both boards, kept across restarts. */
+  boardFullscreen: boolean;
   /**
    * Set once "backlog" has been offered to this vault. An existing vault gets
    * it added to its statuses on the first load after the update; the flag is
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   deleteBehaviour: "trash",
   collapsedColumns: {},
   closedStatuses: ["done", "cancel", "quite"],
+  boardFullscreen: false,
   backlogAdded: true,
 };
 

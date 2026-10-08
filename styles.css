@@ -1092,3 +1092,30 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
    styles directly, which the plugin guidelines disallow. */
 .pm-hidden { display: none; }
 .pm-db-cards-spaced { margin-top: 14px; }
+
+/* ===== Full screen boards ===== */
+/* The board's leaf is lifted over the whole window: sidebars, ribbon, tab
+   bar and status bar are all still there underneath, untouched, for when
+   full screen is turned off. Menus, modals and notices sit on higher layers
+   and still show above it. Only a board that is on screen is lifted, since
+   Obsidian hides the content of background tabs. */
+.workspace-leaf-content.pm-fullscreen {
+  position: fixed;
+  inset: 0;
+  /* Above the ribbon, sidebars and title bar; below popovers, modals,
+     menus and notices, which still have to open over the board */
+  z-index: calc(var(--layer-popover) - 1);
+  background: var(--background-primary);
+}
+.workspace-leaf-content.pm-fullscreen > .view-header { display: none; }
+/* Obsidian contains every leaf strictly and isolates it, with !important,
+   which would keep the board inside the leaf's own box and under the
+   sidebars. Only the board's own leaf is released, and only while it is
+   full screen. */
+.workspace-leaf:has(> .workspace-leaf-content.pm-fullscreen) {
+  contain: none !important;
+  isolation: auto;
+}
+.pm-fullscreen-btn { display: inline-flex; align-items: center; }
+.pm-fullscreen-btn svg { width: 15px; height: 15px; }
+

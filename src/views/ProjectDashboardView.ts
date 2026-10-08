@@ -6,7 +6,7 @@ import { statusColor, priorityColor, isBacklogStatus, isMutedStatus } from "../u
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import { renderTimerBar, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
-import { renderBoardColumn } from "./BoardColumn";
+import { renderBoardColumn, renderFullscreenButton } from "./BoardColumn";
 import {
   AnalyticsData, TimeRecord, TaskInfo, ProjectInfo,
   currentStreak, groupHoursBy, hoursPerDay, isDoneStatus, isOpenStatus,
@@ -83,6 +83,13 @@ export class ProjectDashboardView extends ItemView {
 
   async onOpen(): Promise<void> {
     await this.render();
+    // Esc leaves full screen, unless a dialog or menu is what it should close
+    this.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !this.plugin.settings.boardFullscreen) return;
+      if (this.app.workspace.getActiveViewOfType(ItemView) !== this) return;
+      if (document.querySelector(".modal-container, .menu, .suggestion-container")) return;
+      void this.plugin.toggleBoardFullscreen();
+    });
 
     this.refreshInterval = window.setInterval(() => {
       if (this.plugin.timeTracker.isTicking()) {
@@ -121,6 +128,7 @@ export class ProjectDashboardView extends ItemView {
   // ══════════════════════════════════════════════════════════════════════
 
   async render(): Promise<void> {
+    this.containerEl.toggleClass("pm-fullscreen", this.plugin.settings.boardFullscreen);
     const container = this.containerEl.children[1] as HTMLElement;
     const prevScroll = container.querySelector<HTMLElement>(".pm-db-scroll");
     if (prevScroll) this.scrollTop = prevScroll.scrollTop;
@@ -250,6 +258,7 @@ export class ProjectDashboardView extends ItemView {
       attr: { "aria-label": "Show only active items", "aria-pressed": String(this.plugin.focusMode) },
     });
     focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
+    renderFullscreenButton(actions, this.plugin.settings.boardFullscreen, () => void this.plugin.toggleBoardFullscreen());
 
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })
       .addEventListener("click", () => this.plugin.openNewTaskModal(this.currentWorkspace));

@@ -3,7 +3,7 @@ import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
 import { priorityColor, isBacklogStatus, isMutedStatus, normalizeStatus } from "../utils/StatusColors";
-import { renderBoardColumn } from "./BoardColumn";
+import { renderBoardColumn, renderFullscreenButton } from "./BoardColumn";
 import { NoteInfo, renderNoteBadge } from "../utils/NoteContent";
 import {
   isArchivedPath, isUnderAnyFolder, listProjectOptions, matchProject, projectFolders, taskFolders,
@@ -45,6 +45,13 @@ export class KanbanView extends ItemView {
 
   async onOpen(): Promise<void> {
     await this.render();
+    // Esc leaves full screen, unless a dialog or menu is what it should close
+    this.registerDomEvent(document, "keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !this.plugin.settings.boardFullscreen) return;
+      if (this.app.workspace.getActiveViewOfType(ItemView) !== this) return;
+      if (document.querySelector(".modal-container, .menu, .suggestion-container")) return;
+      void this.plugin.toggleBoardFullscreen();
+    });
     this.refreshInterval = window.setInterval(() => {
       if (this.plugin.timeTracker.isTicking()) {
         tickTimerDisplays(this.containerEl, this.plugin);
@@ -88,6 +95,7 @@ export class KanbanView extends ItemView {
   }
 
   async render(): Promise<void> {
+    this.containerEl.toggleClass("pm-fullscreen", this.plugin.settings.boardFullscreen);
     const container = this.containerEl.children[1] as HTMLElement;
     // A full render rebuilds every element, including whichever filter input
     // was mid-typing — so its focus and cursor are captured here and put back
@@ -501,6 +509,7 @@ export class KanbanView extends ItemView {
       attr: { "aria-label": "Show only active items", "aria-pressed": String(this.plugin.focusMode) },
     });
     focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
+    renderFullscreenButton(actions, this.plugin.settings.boardFullscreen, () => void this.plugin.toggleBoardFullscreen());
 
     // New task button
     actions.createEl("button", { cls: "pm-btn pm-btn-primary", text: "+ New Task" })

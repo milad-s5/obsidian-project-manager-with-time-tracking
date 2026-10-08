@@ -99,3 +99,25 @@ export function renderBoardColumn(board: HTMLElement, o: BoardColumnOptions): Bo
   cards.setAttribute("data-status", o.status);
   return { col, cards };
 }
+
+/**
+ * The full-screen switch both boards carry. It is one setting, so turning
+ * it on in the Kanban also fills the window with the Projects board, and
+ * it is kept until it is turned off again.
+ */
+export function renderFullscreenButton(
+  parent: HTMLElement,
+  on: boolean,
+  toggle: () => void
+): HTMLElement {
+  const btn = parent.createEl("button", {
+    cls: `pm-btn pm-btn-secondary pm-fullscreen-btn${on ? " pm-btn-toggle-on" : ""}`,
+    attr: {
+      "aria-label": on ? "Leave full screen (Esc)" : "Full screen: hide the sidebars and everything else",
+      "aria-pressed": String(on),
+    },
+  });
+  setIcon(btn, on ? "minimize-2" : "maximize-2");
+  btn.addEventListener("click", toggle);
+  return btn;
+}

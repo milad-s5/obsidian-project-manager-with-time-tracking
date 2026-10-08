@@ -152,6 +152,12 @@ export default class ProjectManagerPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "toggle-board-fullscreen",
+      name: "Toggle full screen for the boards",
+      callback: () => void this.toggleBoardFullscreen(),
+    });
+
+    this.addCommand({
       id: "start-timer",
       name: "Start Timer (active file)",
       callback: async () => {
@@ -497,6 +503,13 @@ export default class ProjectManagerPlugin extends Plugin {
 
   /** Reuses refreshTimerViews' "redraw both boards" behaviour so the toggle in
    *  one is instantly reflected in the other, whichever is open. */
+  /** Fills the window with the boards, or gives the sidebars back — both boards at once */
+  async toggleBoardFullscreen(): Promise<void> {
+    this.settings.boardFullscreen = !this.settings.boardFullscreen;
+    await this.savePluginData();
+    this.refreshTimerViews();
+  }
+
   toggleFocusMode(): void {
     this.focusMode = !this.focusMode;
     this.refreshTimerViews();
