@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.4
 
 ### New
 - Click a project's name on the task board, on a card or a project row, to open the project.
