@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Group the task board by project.** A *By project* button on the Kanban; settings choose a row per project (the default) or groups inside each column. Groups fold and stay folded.
+- **New task in backlog**, a command that opens the backlog column's "+" from anywhere.
+- **Done on the overview.** Moving a task to done fills its `end` date, and the overview lists and counts the tasks finished in the period, whether or not time was logged on them.
+
+### Fixed
+- Deleting a task left its time entries behind, and their hours stayed in the reports.
+- A date field low in a dialog had its calendar cut off.
+- On a right-to-left board, the projects board's toolbar still ran left to right.
+
 ## 1.4.0
 
 ### New

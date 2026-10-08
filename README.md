@@ -32,7 +32,7 @@ Everything lives in your vault as plain notes with frontmatter. There is no data
 
 **Dashboard.** Three tabs:
 
-- *Overview* — hours for the period, active days, current streak, open and overdue tasks, hours per day, time by project, most-worked tasks, task status breakdown.
+- *Overview* — hours for the period, active days, current streak, open and overdue tasks, hours per day, time by project, most-worked tasks, tasks done in the period (time logged or not), task status breakdown.
 - *Calendar* — a heat calendar of the period. Click a day to see what you worked on and for how long. Weekly, monthly, seasonal and yearly shapes.
 - *Projects* — a status board of projects with progress, hours and task counts.
 
@@ -43,6 +43,8 @@ Every period can be stepped backwards and forwards, so past months and years are
 ![The projects tab](./images/project-dashboard.png)
 
 **Filters and focus mode.** Narrow either board down by project — type part of a name or pick one from the list — by priority, or on the Kanban board by task title too. A Focus button on both boards drops everything but the *active* column; toggle it on either board and the other follows, since it is one shared switch rather than two.
+
+**Group by project.** The Kanban's *By project* button groups the cards by project: a row per project across the columns, or each project's tasks kept together inside every column, as chosen in settings. Groups fold, and stay folded.
 
 **Due dates.** A calendar-aware date picker for tasks and projects — it draws in Gregorian or Jalali, whichever the calendar setting is, so a due date reads the same everywhere on the dashboard.
 
@@ -95,6 +97,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 ## Settings
 
 - **Calendar**, **week start** and **board direction** (left to right or right to left)
+- **Group tasks by project** — a row per project, or groups inside each column
 - **Deleting a task or project** — to the trash, or permanently
 - **Workspaces** — name and folder for projects, tasks, time entries and the archive. Renaming a workspace updates all of its notes to match.
 - **Archive folder** per workspace, and a *Tidy archive* button for items closed before archiving existed. Leave the folder empty to turn archiving off.
@@ -110,6 +113,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 | Open kanban board | |
 | Open project dashboard | |
 | New task / New project | |
+| New task in backlog | the backlog column's "+", from anywhere |
 | Start timer on the open note | if the open note is a task |
 | Pause or resume the timer | |
 | Stop the timer | logs the tracked time |
