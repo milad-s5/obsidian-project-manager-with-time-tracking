@@ -11,6 +11,7 @@ import {
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
+import { todayISO } from "../utils/Jalali";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
 
@@ -340,7 +341,10 @@ export class KanbanView extends ItemView {
       meta.createSpan({ text: `📁 ${linkSlug(fm.project)}` });
     }
     if (fm.due) {
-      const isOverdue = fm.due < new Date().toISOString().slice(0, 10)
+      // The local date, as the dashboard uses; the UTC one made a task due
+      // today look overdue on an American evening, and kept yesterday's from
+      // looking overdue until 03:30 in Tehran
+      const isOverdue = fm.due < todayISO()
         && !isMutedStatus(status) && !isBacklogStatus(status);
       if (fm.project) meta.createSpan({ cls: "pm-meta-dot" });
       meta.createSpan({ cls: isOverdue ? "pm-overdue" : "", text: `📅 ${this.plugin.calendar.label(fm.due)}` });
