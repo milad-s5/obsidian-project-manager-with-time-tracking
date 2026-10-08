@@ -488,6 +488,9 @@
 .pm-lane-col.is-collapsed .pm-lane-colbox {
   display: flex;
   justify-content: center;
+  /* Not stretched down the whole bar: a right-to-left board would put the
+     name at the bottom of it, out of sight below the rows */
+  align-items: flex-start;
   padding-top: 72px;
 }
 .pm-lane-col.is-collapsed .pm-lane-colbox::after {
