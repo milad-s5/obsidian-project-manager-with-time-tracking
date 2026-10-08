@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Menu, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Menu, Notice, setIcon } from "obsidian";
 import ProjectManagerPlugin from "../main";
 import { Workspace } from "../types";
 import { endDateFields, linkSlug, updateFrontmatterFields } from "../utils/FrontmatterUtils";
@@ -12,6 +12,7 @@ import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { renderTimerBar, resetTimerWithConfirm, showStopNotice, tickTimerDisplays } from "./TimerBar";
 import { ProjectSuggest } from "./ProjectSuggest";
 import { todayISO } from "../utils/Jalali";
+import { groupByProject, ProjectGroup, renderGroupHeading } from "./ProjectGroups";
 
 export const KANBAN_VIEW_TYPE = "project-manager-kanban";
 
@@ -32,6 +33,8 @@ export class KanbanView extends ItemView {
   /** Project titles by file name, for the cards — the title is what people know a project by */
   private projectTitles: Map<string, string> = new Map();
   private renderTimer: number | null = null;
+  /** Cards are grouped by project, so they leave the project off */
+  private grouped = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: ProjectManagerPlugin) {
     super(leaf);
@@ -105,6 +108,7 @@ export class KanbanView extends ItemView {
     const scroll = {
       top: container.scrollTop,
       left: container.querySelector<HTMLElement>(".pm-kanban-board")?.scrollLeft ?? 0,
+      boardTop: container.querySelector<HTMLElement>(".pm-kanban-board")?.scrollTop ?? 0,
       cols: new Map(
         Array.from(container.querySelectorAll<HTMLElement>(".pm-col-cards")).map(
           (el) => [el.getAttribute("data-status") ?? "", el.scrollTop] as const
@@ -120,6 +124,8 @@ export class KanbanView extends ItemView {
 
     // Board
     const board = container.createDiv({ cls: "pm-kanban-board" });
+    const grouping = this.plugin.settings.groupByProject ? this.plugin.settings.projectGrouping : null;
+    this.grouped = grouping !== null;
     // Focus mode drops every column but "active" rather than filtering cards
     // within each column — the columns themselves are the statuses, so hiding
     // everything but the one that means "being worked on right now" is what
@@ -136,45 +142,15 @@ export class KanbanView extends ItemView {
     const projectTitleBySlug = new Map(listProjectOptions(this.app, this.currentWorkspace).map((p) => [p.slug, p.title]));
     this.projectTitles = projectTitleBySlug;
 
-    for (const status of statuses) {
-      const colFiltered = tasks.filter((f) => {
-        const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
-        if (!fm) return false;
-        if (normalizeStatus(fm.status) !== status) return false;
-        if (projectQuery) {
-          const slug = linkSlug(fm.project);
-          const title = (projectTitleBySlug.get(slug) ?? slug).toLowerCase();
-          if (!title.includes(projectQuery)) return false;
-        }
-        if (this.filterPriority && fm.priority !== this.filterPriority) return false;
-        if (taskQuery && !String(fm.title ?? f.basename).toLowerCase().includes(taskQuery)) return false;
-        return true;
-      });
+    const columns = statuses.map((status) => ({ status, files: this.columnTasks(tasks, status, taskQuery, projectQuery, projectTitleBySlug) }));
+    const slugOf = (f: TFile) => linkSlug(this.app.metadataCache.getFileCache(f)?.frontmatter?.project);
+    const titleOf = (slug: string) => projectTitleBySlug.get(slug) ?? slug;
+    // Rows run across every column, so they come from all the columns' tasks
+    const lanes = grouping === "lanes" ? groupByProject(columns.flatMap((c) => c.files), slugOf, titleOf) : [];
+    if (grouping === "lanes") this.renderLaneLabels(board, lanes);
 
-      // Closed columns only ever grow, and whatever was just closed gets lost at
-      // the bottom — so newest first, with the rest behind a button.
+    for (const { status, files: colFiltered } of columns) {
       const closed = isMutedStatus(status);
-      if (closed) {
-        colFiltered.sort((a, b) => b.stat.mtime - a.stat.mtime);
-      } else if (["backlog", "todo", "active"].includes(normalizeStatus(status))) {
-        const priorities = this.plugin.settings.priorities;
-        const rank = (f: TFile) => {
-          const p = String(this.app.metadataCache.getFileCache(f)?.frontmatter?.priority ?? "medium").toLowerCase();
-          const idx = priorities.indexOf(p);
-          return idx === -1 ? priorities.indexOf("medium") : idx;
-        };
-        colFiltered.sort((a, b) => rank(b) - rank(a));
-      }
-
-      const runningPath = this.plugin.timeTracker.getActiveTaskPath();
-      if (runningPath) {
-        const idx = colFiltered.findIndex((f) => f.path === runningPath);
-        if (idx > 0) {
-          const [running] = colFiltered.splice(idx, 1);
-          colFiltered.unshift(running);
-        }
-      }
-
       const expanded = this.expandedCols.has(status);
       const hidden = closed && !expanded ? Math.max(0, colFiltered.length - COLLAPSED_LIMIT) : 0;
       const visible = hidden > 0 ? colFiltered.slice(0, COLLAPSED_LIMIT) : colFiltered;
@@ -210,11 +186,19 @@ export class KanbanView extends ItemView {
       });
       if (isBacklogStatus(status)) this.renderQuickAdd(col, cards, status);
 
-      if (colFiltered.length === 0) {
+      if (grouping === "lanes") {
+        // The column's head is one cell of the grid; the cards list gives way
+        // to one cell per row
+        const top = createDiv({ cls: "pm-lane-top" });
+        col.insertBefore(top, col.firstChild);
+        Array.from(col.children).forEach((el) => { if (el !== top && el !== cards) top.appendChild(el); });
+        this.renderLaneCells(cards, lanes, colFiltered, status, closed, expanded, slugOf);
+      } else if (colFiltered.length === 0) {
         cards.createDiv({ cls: "pm-col-empty", text: "No tasks here" });
-      }
-      for (const task of visible) {
-        this.renderTaskCard(cards, task, status);
+      } else if (grouping === "columns") {
+        this.renderColumnGroups(cards, visible, status, slugOf, titleOf);
+      } else {
+        for (const task of visible) this.renderTaskCard(cards, task, status);
       }
       const header = col.querySelector<HTMLElement>(".pm-col-header");
       if (header) {
@@ -223,26 +207,148 @@ export class KanbanView extends ItemView {
         }
       }
 
-      if (hidden > 0 || (closed && expanded && colFiltered.length > COLLAPSED_LIMIT)) {
-        const toggle = cards.createEl("button", {
-          cls: "pm-col-more",
-          text: hidden > 0 ? `Show ${hidden} older` : "Show fewer",
-        });
-        toggle.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          if (expanded) this.expandedCols.delete(status);
-          else this.expandedCols.add(status);
-          await this.render();
-        });
-      }
+      if (grouping !== "lanes") this.renderMoreButton(cards, status, hidden, closed && expanded && colFiltered.length > COLLAPSED_LIMIT);
     }
 
     board.scrollLeft = scroll.left;
+    board.scrollTop = scroll.boardTop;
     container.scrollTop = scroll.top;
     board.querySelectorAll<HTMLElement>(".pm-col-cards").forEach((el) => {
       el.scrollTop = scroll.cols.get(el.getAttribute("data-status") ?? "") ?? 0;
     });
     restoreFocus(container, focus);
+  }
+
+  /** "Show N older" under a closed column's newest cards, or "Show fewer" once they are all out */
+  private renderMoreButton(parent: HTMLElement, status: string, hidden: number, canFold: boolean): void {
+    if (hidden <= 0 && !canFold) return;
+    const expanded = this.expandedCols.has(status);
+    const toggle = parent.createEl("button", {
+      cls: "pm-col-more",
+      text: hidden > 0 ? `Show ${hidden} older` : "Show fewer",
+    });
+    toggle.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (expanded) this.expandedCols.delete(status);
+      else this.expandedCols.add(status);
+      await this.render();
+    });
+  }
+
+  private groupHours(files: TFile[]): number {
+    return files.reduce((sum, f) => sum + (Number(this.app.metadataCache.getFileCache(f)?.frontmatter?.total_hours) || 0), 0);
+  }
+
+  /** Inside one column: each project's tasks together under a heading that folds */
+  private renderColumnGroups(
+    cards: HTMLElement, files: TFile[], status: string, slugOf: (f: TFile) => string, titleOf: (slug: string) => string
+  ): void {
+    for (const group of groupByProject(files, slugOf, titleOf)) {
+      const box = cards.createDiv({ cls: "pm-group" });
+      const collapsed = this.plugin.isProjectGroupCollapsed(this.currentWorkspace, group.slug);
+      box.toggleClass("is-collapsed", collapsed);
+      renderGroupHeading(box, {
+        group,
+        count: group.files.length,
+        hours: this.groupHours(group.files),
+        collapsed,
+        onToggle: (c) => {
+          box.toggleClass("is-collapsed", c);
+          void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, group.slug, c);
+        },
+      });
+      const list = box.createDiv({ cls: "pm-group-cards" });
+      for (const task of group.files) this.renderTaskCard(list, task, status);
+    }
+  }
+
+  /** The first column of the rows: each project's name, task count and hours */
+  private renderLaneLabels(board: HTMLElement, lanes: ProjectGroup[]): void {
+    board.addClass("pm-lanes");
+    board.setCssProps({ "--pm-lane-count": String(Math.max(1, lanes.length)) });
+    const labels = board.createDiv({ cls: "pm-lane-labels" });
+    labels.createDiv({ cls: "pm-lane-corner" });
+    if (!lanes.length) labels.createDiv({ cls: "pm-lane-label" });
+    for (const lane of lanes) {
+      const collapsed = this.plugin.isProjectGroupCollapsed(this.currentWorkspace, lane.slug);
+      const cell = labels.createDiv({ cls: "pm-lane-label", attr: { "data-lane": lane.slug } });
+      cell.toggleClass("is-collapsed", collapsed);
+      renderGroupHeading(cell, {
+        group: lane,
+        count: lane.files.length,
+        hours: this.groupHours(lane.files),
+        collapsed,
+        onToggle: (c) => {
+          board.querySelectorAll(`[data-lane="${CSS.escape(lane.slug)}"]`).forEach((el) => el.toggleClass("is-collapsed", c));
+          void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, lane.slug, c);
+        },
+      });
+    }
+  }
+
+  /** One column's cell in every row; a folded row keeps only how many it holds */
+  private renderLaneCells(
+    cards: HTMLElement, lanes: ProjectGroup[], files: TFile[], status: string,
+    closed: boolean, expanded: boolean, slugOf: (f: TFile) => string
+  ): void {
+    if (!lanes.length) {
+      cards.createDiv({ cls: "pm-lane-cell" }).createDiv({ cls: "pm-col-empty", text: "No tasks here" });
+      return;
+    }
+    for (const lane of lanes) {
+      const mine = files.filter((f) => slugOf(f) === lane.slug);
+      const cell = cards.createDiv({ cls: "pm-lane-cell", attr: { "data-lane": lane.slug } });
+      cell.toggleClass("is-collapsed", this.plugin.isProjectGroupCollapsed(this.currentWorkspace, lane.slug));
+      cell.createDiv({ cls: "pm-lane-folded", text: mine.length ? String(mine.length) : "" });
+      const list = cell.createDiv({ cls: "pm-lane-cards" });
+      const hidden = closed && !expanded ? Math.max(0, mine.length - COLLAPSED_LIMIT) : 0;
+      for (const task of hidden > 0 ? mine.slice(0, COLLAPSED_LIMIT) : mine) this.renderTaskCard(list, task, status);
+      this.renderMoreButton(list, status, hidden, closed && expanded && mine.length > COLLAPSED_LIMIT);
+    }
+  }
+
+  /** One column's tasks after the filters, in the order the column shows them */
+  private columnTasks(
+    tasks: TFile[], status: string, taskQuery: string, projectQuery: string, projectTitleBySlug: Map<string, string>
+  ): TFile[] {
+    const colFiltered = tasks.filter((f) => {
+      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+      if (!fm) return false;
+      if (normalizeStatus(fm.status) !== status) return false;
+      if (projectQuery) {
+        const slug = linkSlug(fm.project);
+        const title = (projectTitleBySlug.get(slug) ?? slug).toLowerCase();
+        if (!title.includes(projectQuery)) return false;
+      }
+      if (this.filterPriority && fm.priority !== this.filterPriority) return false;
+      if (taskQuery && !String(fm.title ?? f.basename).toLowerCase().includes(taskQuery)) return false;
+      return true;
+    });
+
+    // Closed columns only ever grow, and whatever was just closed gets lost at
+    // the bottom — so newest first, with the rest behind a button.
+    if (isMutedStatus(status)) {
+      colFiltered.sort((a, b) => b.stat.mtime - a.stat.mtime);
+    } else if (["backlog", "todo", "active"].includes(normalizeStatus(status))) {
+      const priorities = this.plugin.settings.priorities;
+      const rank = (f: TFile) => {
+        const p = String(this.app.metadataCache.getFileCache(f)?.frontmatter?.priority ?? "medium").toLowerCase();
+        const idx = priorities.indexOf(p);
+        return idx === -1 ? priorities.indexOf("medium") : idx;
+      };
+      colFiltered.sort((a, b) => rank(b) - rank(a));
+    }
+
+    const runningPath = this.plugin.timeTracker.getActiveTaskPath();
+    if (runningPath) {
+      const idx = colFiltered.findIndex((f) => f.path === runningPath);
+      if (idx > 0) {
+        const [running] = colFiltered.splice(idx, 1);
+        colFiltered.unshift(running);
+      }
+    }
+
+    return colFiltered;
   }
 
   /**
@@ -357,7 +463,8 @@ export class KanbanView extends ItemView {
 
     // Meta row — project · due · hours, all on one line
     const meta = card.createDiv({ cls: "pm-card-meta" });
-    if (fm.project) {
+    const showProject = !!fm.project && !this.grouped;
+    if (showProject) {
       const slug = linkSlug(fm.project);
       meta.createSpan({ text: `📁 ${this.projectTitles.get(slug) ?? slug}` });
     }
@@ -367,7 +474,7 @@ export class KanbanView extends ItemView {
       // looking overdue until 03:30 in Tehran
       const isOverdue = fm.due < todayISO()
         && !isMutedStatus(status) && !isBacklogStatus(status);
-      if (fm.project) meta.createSpan({ cls: "pm-meta-dot" });
+      if (showProject) meta.createSpan({ cls: "pm-meta-dot" });
       meta.createSpan({ cls: isOverdue ? "pm-overdue" : "", text: `📅 ${this.plugin.calendar.label(fm.due)}` });
     }
     meta.createSpan({ cls: "pm-card-hours", text: `⏱ ${fm.total_hours ?? 0}h` });
@@ -525,6 +632,18 @@ export class KanbanView extends ItemView {
       attr: { "aria-label": "Show only active items", "aria-pressed": String(this.plugin.focusMode) },
     });
     focusBtn.addEventListener("click", () => this.plugin.toggleFocusMode());
+    const groupOn = this.plugin.settings.groupByProject;
+    const groupBtn = actions.createEl("button", {
+      cls: `pm-btn pm-btn-secondary pm-group-btn${groupOn ? " pm-btn-toggle-on" : ""}`,
+      text: "By project",
+      attr: {
+        "aria-label": groupOn ? "Stop grouping by project" : "Group the cards by project (the way is set in settings)",
+        "aria-pressed": String(groupOn),
+      },
+    });
+    setIcon(groupBtn.createSpan({ cls: "pm-btn-icon" }), "rows-3");
+    groupBtn.prepend(groupBtn.lastChild as Node);
+    groupBtn.addEventListener("click", () => void this.plugin.toggleGroupByProject());
     renderFullscreenButton(actions, this.plugin.settings.boardFullscreen, () => void this.plugin.toggleBoardFullscreen());
     renderMoreMenu(actions, this.plugin.ext, { where: "kanban", ws: this.currentWorkspace });
 

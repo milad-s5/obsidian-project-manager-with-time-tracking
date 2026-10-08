@@ -84,6 +84,23 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName("Group tasks by project")
+      .setDesc(
+        "How the Kanban's \"By project\" button groups the cards: a row per project running " +
+          "across the status columns, or the tasks of each project kept together inside every column."
+      )
+      .addDropdown((drop) => {
+        drop.addOption("lanes", "A row per project");
+        drop.addOption("columns", "Inside each column");
+        drop.setValue(this.plugin.settings.projectGrouping);
+        drop.onChange(async (value) => {
+          this.plugin.settings.projectGrouping = value === "columns" ? "columns" : "lanes";
+          await this.plugin.saveSettings();
+          this.plugin.refreshTimerViews();
+        });
+      });
+
+    new Setting(containerEl)
       .setName("Week starts on")
       .setDesc("Default follows the calendar — Saturday for Jalali, Monday for Gregorian.")
       .addDropdown((drop) => {

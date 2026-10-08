@@ -47,6 +47,11 @@ export function statusSlot(status: string): number {
   return STATUS_SLOT[key] ?? FALLBACK_SLOTS[stableIndex(key, FALLBACK_SLOTS.length)];
 }
 
+/** A project's colour on the board, the same every time; grey for no project */
+export function projectColor(slug: string): string {
+  return slug ? `var(--pm-cat-${1 + stableIndex(slug, 8)})` : "var(--text-faint)";
+}
+
 export function statusColor(status: string): string {
   // Backlog is deliberately grey: it is not work in flight, and a palette slot
   // would make it compete with todo and active for attention.

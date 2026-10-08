@@ -340,6 +340,23 @@ export default class ProjectManagerPlugin extends Plugin {
   }
 
   /** Backlog starts folded — it is the column you look into, not at */
+  isProjectGroupCollapsed(ws: Workspace, slug: string): boolean {
+    return this.settings.collapsedProjectGroups.includes(`${ws.id}:${slug}`);
+  }
+
+  async setProjectGroupCollapsed(ws: Workspace, slug: string, collapsed: boolean): Promise<void> {
+    const key = `${ws.id}:${slug}`;
+    const rest = this.settings.collapsedProjectGroups.filter((k) => k !== key);
+    this.settings.collapsedProjectGroups = collapsed ? [...rest, key] : rest;
+    await this.savePluginData();
+  }
+
+  async toggleGroupByProject(): Promise<void> {
+    this.settings.groupByProject = !this.settings.groupByProject;
+    await this.savePluginData();
+    this.refreshKanban();
+  }
+
   isColumnCollapsed(board: BoardKind, status: string): boolean {
     return this.settings.collapsedColumns[`${board}:${status}`] ?? isBacklogStatus(status);
   }

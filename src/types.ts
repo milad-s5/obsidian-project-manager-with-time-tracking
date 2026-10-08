@@ -39,6 +39,12 @@ export interface ProjectManagerSettings {
   boardFullscreen: boolean;
   /** Which way the boards read: columns, cards and toolbar all follow it */
   boardDirection: "ltr" | "rtl";
+  /** The task board groups its cards by project; switched from its toolbar */
+  groupByProject: boolean;
+  /** How it groups: a row per project across the columns, or groups inside each column */
+  projectGrouping: ProjectGrouping;
+  /** Folded project groups and rows, keyed "<workspace id>:<project slug>" */
+  collapsedProjectGroups: string[];
   /** See src/features/pomodoro.ts */
   pomodoro: PomodoroSettings;
   /**
@@ -48,6 +54,8 @@ export interface ProjectManagerSettings {
    */
   backlogAdded: boolean;
 }
+
+export type ProjectGrouping = "lanes" | "columns";
 
 /**
  * "trash" hands the file to whatever Obsidian is set to do with deleted files,
@@ -78,6 +86,9 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   closedStatuses: ["done", "cancel", "quite"],
   boardFullscreen: false,
   boardDirection: "ltr",
+  groupByProject: false,
+  projectGrouping: "lanes",
+  collapsedProjectGroups: [],
   pomodoro: { ...DEFAULT_POMODORO },
   backlogAdded: true,
 };
