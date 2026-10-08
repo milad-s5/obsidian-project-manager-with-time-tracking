@@ -37,6 +37,8 @@ export interface ProjectManagerSettings {
   closedStatuses: string[];
   /** Boards fill the whole window. One switch for both boards, kept across restarts. */
   boardFullscreen: boolean;
+  /** Which way the boards read: columns, cards and toolbar all follow it */
+  boardDirection: "ltr" | "rtl";
   /** See src/features/pomodoro.ts */
   pomodoro: PomodoroSettings;
   /**
@@ -75,6 +77,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   collapsedColumns: {},
   closedStatuses: ["done", "cancel", "quite"],
   boardFullscreen: false,
+  boardDirection: "ltr",
   pomodoro: { ...DEFAULT_POMODORO },
   backlogAdded: true,
 };

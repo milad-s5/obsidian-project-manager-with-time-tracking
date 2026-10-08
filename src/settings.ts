@@ -66,6 +66,24 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName("Board direction")
+      .setDesc(
+        "Right to left mirrors both boards, the Kanban and the projects board: the first column " +
+          "starts on the right, and cards and the toolbar read right to left. Dialogs and the " +
+          "other dashboard tabs are not affected."
+      )
+      .addDropdown((drop) => {
+        drop.addOption("ltr", "Left to right");
+        drop.addOption("rtl", "Right to left");
+        drop.setValue(this.plugin.settings.boardDirection);
+        drop.onChange(async (value) => {
+          this.plugin.settings.boardDirection = value === "rtl" ? "rtl" : "ltr";
+          await this.plugin.saveSettings();
+          this.plugin.refreshTimerViews();
+        });
+      });
+
+    new Setting(containerEl)
       .setName("Week starts on")
       .setDesc("Default follows the calendar — Saturday for Jalali, Monday for Gregorian.")
       .addDropdown((drop) => {

@@ -60,7 +60,10 @@ export function renderBoardColumn(board: HTMLElement, o: BoardColumnOptions): Bo
 
   const paint = () => {
     const collapsed = col.hasClass("is-collapsed");
-    setIcon(fold, collapsed ? "chevron-right" : "chevron-left");
+    // The arrow points the way the column will move, which a right-to-left
+    // board mirrors
+    const rtl = col.closest("[dir]")?.getAttribute("dir") === "rtl";
+    setIcon(fold, collapsed !== rtl ? "chevron-right" : "chevron-left");
     fold.setAttr("aria-label", collapsed ? `Expand ${o.status}` : `Collapse ${o.status}`);
     fold.setAttr("aria-expanded", String(!collapsed));
   };

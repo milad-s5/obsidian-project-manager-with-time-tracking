@@ -1030,6 +1030,9 @@ export class ProjectDashboardView extends ItemView {
 
   private renderProjectsTab(root: HTMLElement, data: AnalyticsData): void {
     const board = root.createDiv({ cls: "pm-kanban-board" });
+    // The projects board follows the board direction; the rest of the
+    // dashboard keeps the vault's own
+    board.setAttribute("dir", this.plugin.settings.boardDirection);
 
     // Focus mode drops every column but "active" — same rule the Kanban board
     // uses, so both boards mean the same thing by "only active items".

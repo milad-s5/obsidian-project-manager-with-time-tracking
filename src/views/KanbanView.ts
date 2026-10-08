@@ -113,6 +113,7 @@ export class KanbanView extends ItemView {
     };
     container.empty();
     container.addClass("pm-kanban-container");
+    container.setAttribute("dir", this.plugin.settings.boardDirection);
 
     // Toolbar
     this.renderToolbar(container);
