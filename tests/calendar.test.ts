@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createCalendar } from "../src/utils/Calendar";
+import { createCalendar, stripBidi } from "../src/utils/Calendar";
 
 const greg = createCalendar("gregorian");
 const jal = createCalendar("jalali");
@@ -28,14 +28,19 @@ test("month steps clamp to the last day of a shorter month", () => {
 
 test("labels read in the calendar's own words", () => {
   assert.equal(greg.label("2026-10-04"), "4 October 2026");
-  assert.equal(jal.label("2026-10-04"), "۱۲ مهر ۱۴۰۵");
-  assert.equal(jal.weekdayLabel("2026-10-03"), "شنبه");
+  assert.equal(stripBidi(jal.label("2026-10-04")), "۱۲ مهر ۱۴۰۵");
+  assert.equal(stripBidi(jal.weekdayLabel("2026-10-03")), "شنبه");
   assert.equal(greg.seasonLabel("2026-10-04"), "Q4 2026");
-  assert.equal(jal.seasonLabel("2026-10-04"), "پاییز ۱۴۰۵");
+  assert.equal(stripBidi(jal.seasonLabel("2026-10-04")), "پاییز ۱۴۰۵");
 });
 
 test("period starts", () => {
   assert.equal(jal.startOfMonth("2026-10-04"), "2026-09-23");
   assert.equal(jal.startOfYear("2026-10-04"), "2026-03-21");
   assert.equal(greg.startOfSeason("2026-11-15"), "2026-10-01");
+});
+
+test("Jalali labels keep their own order inside left-to-right text", () => {
+  assert.equal(jal.label("2026-10-04"), "\u2067۱۲ مهر ۱۴۰۵\u2069");
+  assert.equal(greg.label("2026-10-04"), "4 October 2026", "Gregorian labels need no isolate");
 });

@@ -153,7 +153,26 @@ const START_DAY: Record<Exclude<WeekStart, "auto">, number> = { sun: 0, mon: 1, 
 
 // ── One implementation over either core ─────────────────────────────────
 
+/**
+ * Wraps right-to-left text in a directional isolate (RLI … PDI).
+ *
+ * A Jalali label is read right to left, but it is usually dropped into
+ * left-to-right text: a card's "📅 " line, a table cell, an English
+ * sentence. There the Unicode bidi algorithm left the numbers where they
+ * fell, so "۱۴ مهر ۱۴۰۵" was drawn as "مهر ۱۴۰۵ ۱۴". Isolated, it keeps its
+ * own order wherever it lands, and in right-to-left text it changes nothing.
+ */
+export function isolateRtl(text: string): string {
+  return `\u2067${text}\u2069`;
+}
+
+/** Removes the isolates again, for text going somewhere other than the screen */
+export function stripBidi(text: string): string {
+  return text.replace(/[\u2066-\u2069]/g, "");
+}
+
 function build(core: CalendarCore, weekStart: WeekStart): Calendar {
+  const out = core.kind === "jalali" ? isolateRtl : (t: string) => t;
   const startDay = START_DAY[weekStart === "auto" ? core.defaultWeekStart : weekStart];
 
   /** 0 = the first column of the week, whichever weekday that is */
@@ -180,40 +199,40 @@ function build(core: CalendarCore, weekStart: WeekStart): Calendar {
 
     label(iso) {
       const { y, m, d } = core.fromISO(iso);
-      return `${core.digits(d)} ${core.monthsLong[m - 1]} ${core.digits(y)}`;
+      return out(`${core.digits(d)} ${core.monthsLong[m - 1]} ${core.digits(y)}`);
     },
 
     monthLabel(y, m) {
-      return `${core.monthsLong[m - 1]} ${core.digits(y)}`;
+      return out(`${core.monthsLong[m - 1]} ${core.digits(y)}`);
     },
 
     weekdayLabel(iso) {
       // Indexed by the real weekday, not the display column
       const day = isoToDate(iso).getDay();
       const idx = core.kind === "jalali" ? (day + 1) % 7 : day;
-      return core.weekdaysLong[idx];
+      return out(core.weekdaysLong[idx]);
     },
 
     dayTitle(iso) {
-      return `${cal.weekdayLabel(iso)}${core.words.comma} ${cal.label(iso)}`;
+      return out(`${cal.weekdayLabel(iso)}${core.words.comma} ${cal.label(iso)}`);
     },
 
     weekLabel(iso) {
-      return core.words.week(cal.label(iso));
+      return out(core.words.week(cal.label(iso)));
     },
 
     yearLabel(iso) {
-      return core.words.year(core.digits(core.fromISO(iso).y));
+      return out(core.words.year(core.digits(core.fromISO(iso).y)));
     },
 
     rangeLabel(fromISO, toISO) {
-      return `${cal.label(fromISO)} ${core.words.to} ${cal.label(toISO)}`;
+      return out(`${cal.label(fromISO)} ${core.words.to} ${cal.label(toISO)}`);
     },
 
     seasonLabel(iso) {
       const { y, m } = core.fromISO(iso);
       const season = Math.floor((m - 1) / 3);
-      return `${core.seasonNames[season]} ${core.digits(y)}`;
+      return out(`${core.seasonNames[season]} ${core.digits(y)}`);
     },
 
     firstWeekdayCol(y, m) {
