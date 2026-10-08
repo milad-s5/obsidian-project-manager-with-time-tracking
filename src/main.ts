@@ -240,7 +240,8 @@ export default class ProjectManagerPlugin extends Plugin {
    */
   async loadSettings(): Promise<void> {
     const data = ((await this.loadData()) ?? {}) as Record<string, unknown>;
-    const { activeTimer, ...settings } = data;
+    // dateFormat was a setting that nothing ever read; an old file still has it
+    const { activeTimer, dateFormat: _unused, ...settings } = data;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
     this.persistedTimer = activeTimer ?? null;
 

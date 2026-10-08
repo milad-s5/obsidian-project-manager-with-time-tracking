@@ -18,7 +18,6 @@ export interface Workspace {
 export interface ProjectManagerSettings {
   workspaces: Workspace[];
   defaultWorkspaceId: string;
-  dateFormat: string;
   statuses: string[];
   priorities: string[];
   /** Which calendar the dashboard counts and labels in */
@@ -61,7 +60,6 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
     },
   ],
   defaultWorkspaceId: "default",
-  dateFormat: "YYYY-MM-DD",
   statuses: ["backlog", "todo", "active", "done", "cancel", "quite"],
   priorities: ["low", "medium", "high", "critical"],
   calendar: "gregorian",

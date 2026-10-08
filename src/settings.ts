@@ -79,20 +79,6 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
         });
       });
 
-    // Date format
-    new Setting(containerEl)
-      .setName("Date format")
-      .setDesc("e.g. YYYY-MM-DD")
-      .addText((text) =>
-        text
-          .setPlaceholder("YYYY-MM-DD")
-          .setValue(this.plugin.settings.dateFormat)
-          .onChange(async (value) => {
-            this.plugin.settings.dateFormat = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
     // Workspaces
     new Setting(containerEl).setName("Workspaces").setHeading();
 
