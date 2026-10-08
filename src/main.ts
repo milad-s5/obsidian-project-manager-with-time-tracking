@@ -11,6 +11,7 @@ import { TaskModal } from "./views/TaskModal";
 import { ProjectModal } from "./views/ProjectModal";
 import { AnalyticsManager } from "./managers/AnalyticsManager";
 import { ArchiveManager } from "./managers/ArchiveManager";
+import { ProjectStatsSync } from "./managers/ProjectStatsSync";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
@@ -34,6 +35,7 @@ export default class ProjectManagerPlugin extends Plugin {
   api!: ProjectManagerApi;
   /** Jalali or Gregorian, per settings. Rebuilt whenever those change. */
   calendar!: Calendar;
+  projectStats!: ProjectStatsSync;
   /** Raw timer from data.json — held until timeTracker has been constructed */
   private persistedTimer: unknown = null;
   /** Shows only "active" status items — lives on the plugin, not a view, so
@@ -52,14 +54,28 @@ export default class ProjectManagerPlugin extends Plugin {
     this.analytics = new AnalyticsManager(this.app);
     this.noteScanner = new NoteScanner(this.app);
     this.archiveManager = new ArchiveManager(this.app, this.workspaceManager);
+    this.projectStats = new ProjectStatsSync(
+      this.app,
+      this.projectManager,
+      (file) => this.workspaceOfFile(file),
+      (path) => this.workspaceOfPath(path)
+    );
     this.api = createApi(this);
     this.rebuildCalendar();
 
     this.restoreTimer();
     // Archiving moves a task's note the moment it closes, timer or no timer
     this.registerEvent(
-      this.app.vault.on("rename", (file, oldPath) => this.timeTracker.handleRename(file.path, oldPath))
+      this.app.vault.on("rename", (file, oldPath) => {
+        this.timeTracker.handleRename(file.path, oldPath);
+        this.projectStats.onRenamed(file.path, oldPath);
+      })
     );
+    this.app.workspace.onLayoutReady(() => {
+      this.projectStats.seed();
+      this.registerEvent(this.app.metadataCache.on("changed", (file) => this.projectStats.onChanged(file)));
+      this.registerEvent(this.app.vault.on("delete", (file) => this.projectStats.onDeleted(file.path)));
+    });
     await this.migrateStatusNames();
     await this.addBacklogStatus();
 
@@ -195,9 +211,11 @@ export default class ProjectManagerPlugin extends Plugin {
   }
 
   async onunload(): Promise<void> {
-    // Nothing to tear down here. Leaves are deliberately left alone — Obsidian's
-    // guidelines are explicit that detaching them on unload throws away the
-    // user's layout — and styles.css is Obsidian's to load and unload.
+    // A recount still waiting would otherwise fire after the plugin is gone.
+    // Leaves are deliberately left alone — Obsidian's guidelines are explicit
+    // that detaching them on unload throws away the user's layout — and
+    // styles.css is Obsidian's to load and unload.
+    this.projectStats?.cancel();
   }
 
   /**
@@ -323,6 +341,15 @@ export default class ProjectManagerPlugin extends Plugin {
       this.settings.workspaces.find((ws) => ws.id === ref) ??
       this.settings.workspaces.find((ws) => ws.name === linkSlug(ref)) ??
       null
+    );
+  }
+
+  /** The workspace whose folders hold this path — for notes already gone */
+  workspaceOfPath(path: string): Workspace | null {
+    return (
+      this.settings.workspaces.find((ws) =>
+        isUnderAnyFolder(path, [...taskFolders(ws), ...projectFolders(ws)])
+      ) ?? null
     );
   }
 

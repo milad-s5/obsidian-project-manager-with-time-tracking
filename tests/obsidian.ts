@@ -8,6 +8,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// The plugin uses window.setTimeout and friends, as Obsidian's guidelines ask;
+// under Node the same functions live on globalThis
+(globalThis as Record<string, unknown>).window ??= globalThis;
+
 export function normalizePath(p: string): string {
   return String(p ?? "")
     .replace(/\\/g, "/")

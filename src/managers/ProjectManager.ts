@@ -2,6 +2,8 @@ import { App, TFile } from "obsidian";
 import { Workspace } from "../types";
 import { linkSlug, slugify, yamlString } from "../utils/FrontmatterUtils";
 import { uniqueNotePath } from "../utils/FileOps";
+import { normalizeStatus } from "../utils/StatusColors";
+import { isDoneStatus, isOpenStatus } from "./AnalyticsManager";
 import { todayString } from "../utils/DateUtils";
 import { isUnderAnyFolder, projectFolders, taskFolders } from "../utils/WorkspacePaths";
 
@@ -59,30 +61,42 @@ workspace: "[[${ws.name}]]"
     return result;
   }
 
-  async updateProjectStats(app: App, ws: Workspace, projectSlug: string): Promise<void> {
+  /**
+   * Recounts a project's hours and task_count from its tasks.
+   *
+   * task_count counts what the board's "done of" counts: tasks that are done
+   * or still open. Cancelled and abandoned tasks are left out, and so is the
+   * backlog, which has not been taken on. Hours include every task.
+   *
+   * @returns whether the note had to be changed
+   */
+  async updateProjectStats(app: App, ws: Workspace, projectSlug: string): Promise<boolean> {
     // The project may be archived, so a fixed path will not find it
     const projectFile = (await this.getProjects(ws)).find((f) => f.basename === projectSlug);
-    if (!projectFile) return;
+    if (!projectFile) return false;
 
     // Archived tasks have to count too, or a project's hours and task count drop
     // to zero the moment it closes
     const taskFolderList = taskFolders(ws);
-    const tasks = app.vault.getMarkdownFiles().filter((f) => {
-      if (!isUnderAnyFolder(f.path, taskFolderList)) return false;
-      const cache = app.metadataCache.getFileCache(f);
-      const fm = cache?.frontmatter;
-      return fm?.type === "task" && linkSlug(fm?.project) === projectSlug;
-    });
+    const tasks = app.vault.getMarkdownFiles()
+      .filter((f) => isUnderAnyFolder(f.path, taskFolderList))
+      .map((f) => app.metadataCache.getFileCache(f)?.frontmatter)
+      .filter((fm) => fm?.type === "task" && linkSlug(fm?.project) === projectSlug);
 
-    let totalHours = 0;
-    for (const t of tasks) {
-      const fm = app.metadataCache.getFileCache(t)?.frontmatter;
-      totalHours += Number(fm?.total_hours ?? 0);
-    }
+    const counted = tasks.filter((fm) => {
+      const status = normalizeStatus(fm?.status);
+      return isDoneStatus(status) || isOpenStatus(status);
+    }).length;
+    const hours = Math.round(tasks.reduce((sum, fm) => sum + (Number(fm?.total_hours ?? 0) || 0), 0) * 100) / 100;
 
+    // Unchanged numbers are not rewritten, so recounting is cheap and quiet
+    const current = app.metadataCache.getFileCache(projectFile)?.frontmatter;
+    if (Number(current?.task_count) === counted && Number(current?.hours) === hours) return false;
     await app.fileManager.processFrontMatter(projectFile, (fm) => {
-      fm.task_count = tasks.length;
-      fm.hours = Math.round(totalHours * 100) / 100;
+      fm.task_count = counted;
+      fm.hours = hours;
     });
+    return true;
   }
+
 }
