@@ -16,6 +16,7 @@ import { rebuildTotals } from "./managers/TotalsRebuilder";
 import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
 import { setupStatusBarTimer } from "./features/statusBarTimer";
 import { setupCompletedDate } from "./features/completedDate";
+import { setupWhatsNew } from "./features/whatsNew";
 import { setupPomodoro } from "./features/pomodoro";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
@@ -46,6 +47,8 @@ export default class ProjectManagerPlugin extends Plugin {
   /** status-changed, time-logged, timer-changed — see src/core/Extensions.ts */
   events = new PmEvents();
   private statusWatcher!: StatusWatcher;
+  /** No data.json was found on load */
+  freshInstall = false;
   /** Raw timer from data.json — held until timeTracker has been constructed */
   private persistedTimer: unknown = null;
   /** Shows only "active" status items — lives on the plugin, not a view, so
@@ -265,6 +268,7 @@ export default class ProjectManagerPlugin extends Plugin {
     setupStatusBarTimer(this);
     setupPomodoro(this);
     setupCompletedDate(this);
+    setupWhatsNew(this);
 
     // Ribbon icons for quick access
     this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());
@@ -288,7 +292,10 @@ export default class ProjectManagerPlugin extends Plugin {
    * sits beside them under the activeTimer key.
    */
   async loadSettings(): Promise<void> {
-    const data = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+    const stored = (await this.loadData()) as Record<string, unknown> | null;
+    // Nothing saved yet: a new install, with nothing to tell about updates
+    this.freshInstall = !stored;
+    const data = stored ?? {};
     // dateFormat was a setting that nothing ever read; an old file still has it
     const { activeTimer, dateFormat: _unused, ...settings } = data;
     // A deep copy of the defaults: Object.assign alone shares their arrays and

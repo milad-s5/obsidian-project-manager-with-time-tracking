@@ -53,6 +53,10 @@ export interface ProjectManagerSettings {
   laneLabelWidth: number;
   /** See src/features/pomodoro.ts */
   pomodoro: PomodoroSettings;
+  /** The version whose changes were last shown; "" before any were */
+  lastSeenVersion: string;
+  /** Open "What's new" by itself after an update */
+  showWhatsNew: boolean;
   /**
    * Set once "backlog" has been offered to this vault. An existing vault gets
    * it added to its statuses on the first load after the update; the flag is
@@ -101,6 +105,8 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   projectOrder: "activity",
   laneLabelWidth: DEFAULT_LANE_LABEL_WIDTH,
   pomodoro: { ...DEFAULT_POMODORO },
+  lastSeenVersion: "",
+  showWhatsNew: true,
   backlogAdded: true,
 };
 

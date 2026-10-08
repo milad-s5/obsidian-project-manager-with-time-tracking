@@ -1326,3 +1326,15 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
   unicode-bidi: plaintext;
 }
 [dir="rtl"] :is(.pm-toolbar input, .pm-col-quickadd)::placeholder { unicode-bidi: plaintext; }
+
+/* ── What's new ─────────────────────────────────────────────────────── */
+.pm-whatsnew-sub { color: var(--text-muted); font-size: 12.5px; margin: -6px 0 10px; }
+.pm-whatsnew-body { max-height: 60vh; overflow-y: auto; padding-inline-end: 4px; }
+.pm-whatsnew-version h3 { margin: 14px 0 4px; font-size: 15px; }
+.pm-whatsnew-version:first-child h3 { margin-top: 0; }
+.pm-whatsnew-version + .pm-whatsnew-version { margin-top: 14px; padding-top: 4px; border-top: 1px solid var(--background-modifier-border); }
+.pm-whatsnew-version h4 { margin: 10px 0 4px; font-size: 12.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.pm-whatsnew-version ul { margin: 0; padding-inline-start: 20px; }
+.pm-whatsnew-version li { margin: 3px 0; line-height: 1.5; }
+.pm-whatsnew .pm-modal-btns { align-items: center; }
+.pm-whatsnew-link { margin-inline-end: auto; font-size: 12.5px; }

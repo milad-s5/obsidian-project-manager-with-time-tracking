@@ -106,6 +106,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 - **Closed statuses** — which statuses archive an item and leave it out of open work
 - **Rename a status** — renames it in settings and in every task and project note
 - **Pomodoro** — on or off, round and break lengths, and whether to resume after a break
+- **What's new** — whether it opens by itself after an update
 
 ## Commands
 
@@ -125,6 +126,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 | Tidy archive | moves closed items, restores reopened ones |
 | Rebuild totals from logged time | recounts every task's and project's totals |
 | Pomodoro: end the break now | when Pomodoro is on |
+| What's new | what changed in this version |
 
 ## For other plugin authors
 
