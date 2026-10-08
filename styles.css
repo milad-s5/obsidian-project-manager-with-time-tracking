@@ -1129,3 +1129,7 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 /* ===== Status bar timer ===== */
 .pm-statusbar-timer { font-variant-numeric: tabular-nums; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-statusbar-timer.is-paused { color: var(--text-muted); }
+
+/* ===== Pomodoro ===== */
+.pm-statusbar-pomodoro { font-variant-numeric: tabular-nums; }
+.pm-card-pomodoros { color: var(--text-muted); }

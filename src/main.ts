@@ -15,6 +15,7 @@ import { ProjectStatsSync } from "./managers/ProjectStatsSync";
 import { rebuildTotals } from "./managers/TotalsRebuilder";
 import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
 import { setupStatusBarTimer } from "./features/statusBarTimer";
+import { setupPomodoro } from "./features/pomodoro";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
 import { defaultArchiveFolder, isUnderAnyFolder, projectFolders, taskFolders } from "./utils/WorkspacePaths";
@@ -253,6 +254,7 @@ export default class ProjectManagerPlugin extends Plugin {
 
     // Features — each lives in src/features and plugs itself in
     setupStatusBarTimer(this);
+    setupPomodoro(this);
 
     // Ribbon icons for quick access
     this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());
@@ -307,6 +309,8 @@ export default class ProjectManagerPlugin extends Plugin {
       this.settings.backlogAdded = false;
     }
 
+    // Stored older or partial, a nested setting gets the missing keys from its defaults
+    this.settings.pomodoro = { ...DEFAULT_SETTINGS.pomodoro, ...(this.settings.pomodoro ?? {}) };
     this.settings.closedStatuses = [...(this.settings.closedStatuses ?? DEFAULT_CLOSED_STATUSES)];
     setClosedStatuses(this.settings.closedStatuses);
   }

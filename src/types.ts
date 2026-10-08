@@ -1,4 +1,5 @@
 import { CalendarKind, WeekStart } from "./utils/Calendar";
+import { DEFAULT_POMODORO, PomodoroSettings } from "./features/pomodoro";
 
 export interface Workspace {
   id: string;
@@ -36,6 +37,8 @@ export interface ProjectManagerSettings {
   closedStatuses: string[];
   /** Boards fill the whole window. One switch for both boards, kept across restarts. */
   boardFullscreen: boolean;
+  /** See src/features/pomodoro.ts */
+  pomodoro: PomodoroSettings;
   /**
    * Set once "backlog" has been offered to this vault. An existing vault gets
    * it added to its statuses on the first load after the update; the flag is
@@ -72,6 +75,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   collapsedColumns: {},
   closedStatuses: ["done", "cancel", "quite"],
   boardFullscreen: false,
+  pomodoro: { ...DEFAULT_POMODORO },
   backlogAdded: true,
 };
 
