@@ -51,6 +51,8 @@ export interface ProjectManagerSettings {
   projectOrder: ProjectOrder;
   /** Width in pixels of the project names beside the rows */
   laneLabelWidth: number;
+  /** Projects in these statuses, and their tasks, are left off the task board */
+  hiddenProjectStatuses: string[];
   /** See src/features/pomodoro.ts */
   pomodoro: PomodoroSettings;
   /** The version whose changes were last shown; "" before any were */
@@ -104,6 +106,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   pinnedProjects: [],
   projectOrder: "activity",
   laneLabelWidth: DEFAULT_LANE_LABEL_WIDTH,
+  hiddenProjectStatuses: ["done", "cancel", "quite"],
   pomodoro: { ...DEFAULT_POMODORO },
   lastSeenVersion: "",
   showWhatsNew: true,

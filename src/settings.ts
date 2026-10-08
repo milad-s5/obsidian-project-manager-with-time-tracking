@@ -117,6 +117,25 @@ export class ProjectManagerSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName("Hide projects on the task board")
+      .setDesc(
+        "Projects in these statuses, and their tasks, are left off the Kanban, comma-separated. " +
+          "Leave empty to show every project."
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("done, cancel")
+          .setValue(this.plugin.settings.hiddenProjectStatuses.join(", "))
+          .onChange(async (value) => {
+            this.plugin.settings.hiddenProjectStatuses = [
+              ...new Set(value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
+            ];
+            await this.plugin.saveSettings();
+            this.plugin.refreshKanban();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("Week starts on")
       .setDesc("Default follows the calendar — Saturday for Jalali, Monday for Gregorian.")
       .addDropdown((drop) => {

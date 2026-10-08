@@ -145,9 +145,15 @@ export class KanbanView extends ItemView {
     // suggester offers — the slug behind it is never shown to the user.
     const projectOptions = listProjectOptions(this.app, this.currentWorkspace);
     const projectTitleBySlug = new Map(projectOptions.map((p) => [p.slug, p.title]));
+    // Finished projects are kept off the board, tasks and all
+    const hiddenStatuses = new Set(this.plugin.settings.hiddenProjectStatuses.map((s) => normalizeStatus(s)));
+    const hiddenProjects = new Set(projectOptions.filter((p) => hiddenStatuses.has(p.status)).map((p) => p.slug));
+    const visibleTasks = hiddenProjects.size
+      ? tasks.filter((t) => !hiddenProjects.has(linkSlug(this.app.metadataCache.getFileCache(t)?.frontmatter?.project)))
+      : tasks;
     this.projectTitles = projectTitleBySlug;
 
-    const columns = statuses.map((status) => ({ status, files: this.columnTasks(tasks, status, taskQuery, projectQuery, projectTitleBySlug) }));
+    const columns = statuses.map((status) => ({ status, files: this.columnTasks(visibleTasks, status, taskQuery, projectQuery, projectTitleBySlug) }));
     const slugOf = (f: TFile) => linkSlug(this.app.metadataCache.getFileCache(f)?.frontmatter?.project);
     const titleOf = (slug: string) => projectTitleBySlug.get(slug) ?? slug;
     // Rows run across every column, so they come from all the columns' tasks
