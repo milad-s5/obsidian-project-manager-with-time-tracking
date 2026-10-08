@@ -401,62 +401,57 @@
 .pm-group + .pm-group { padding-top: 6px; border-top: 1px dashed var(--background-modifier-border); }
 .pm-group.is-collapsed .pm-group-cards { display: none; }
 
-/* As rows: one grid, the columns and the name column each spanning every row
-   and sharing its heights, so a row lines up from one column to the next */
+/* As rows: one grid for the whole board. Each column's head, its cell in
+   every project's row and a box drawing the column behind them are placed
+   in it directly, and the names run down the first column, so a row is as
+   tall as its tallest cell in every column at once. */
 .pm-kanban-board.pm-lanes {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: auto;
-  grid-template-rows: auto repeat(var(--pm-lane-count), auto);
   align-content: start;
   align-items: stretch;
   column-gap: 14px;
   overflow: auto;
 }
-.pm-lanes > .pm-kanban-col,
-.pm-lanes > .pm-lane-labels {
-  grid-row: 1 / -1;
-  display: grid;
-  grid-template-rows: subgrid;
-  max-height: none;
+.pm-lanes .pm-lane-col,
+.pm-lanes .pm-lane-col .pm-col-cards,
+.pm-lanes .pm-lane-labels { display: contents; }
+.pm-lane-colbox {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
 }
-.pm-lanes > .pm-kanban-col {
-  width: 260px;
-  /* The cells keep a card's width while a folded column is narrow, so the
-     rows stay the height they are, and the head takes the bar's width */
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-  max-width: none;
-  /* clip rather than hidden, which would stop the heading sticking */
-  overflow: clip;
-  transition: width 0.22s ease;
+.pm-lane-col.pm-drag-over .pm-lane-colbox {
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-secondary));
+  outline: 2px dashed var(--interactive-accent);
+  outline-offset: -2px;
 }
-.pm-lanes > .pm-kanban-col.is-collapsed { width: 40px; position: relative; }
-/* A folded column's name runs down the bar below its head, out of the head
-   row, so the head row stays as short as the open columns' heads */
-.pm-lanes > .pm-kanban-col.is-collapsed .pm-col-title {
-  position: absolute;
-  top: 64px;
-  left: 0;
-  right: 0;
-  width: max-content;
-  margin-inline: auto;
-}
-.pm-lanes > .pm-kanban-col.is-collapsed .pm-col-quickadd { display: none; }
-.pm-lanes .pm-kanban-col .pm-col-cards { display: contents; }
-.pm-lane-top, .pm-lane-corner {
+.pm-lane-top {
   position: sticky;
   top: -16px;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
 }
-.pm-lane-corner { background: var(--background-primary); z-index: 4; }
-.pm-lane-top { display: flex; flex-direction: column; }
+.pm-lane-corner {
+  position: sticky;
+  top: -16px;
+  inset-inline-start: -16px;
+  z-index: 4;
+  background: var(--background-primary);
+}
 .pm-lane-cell {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 238px;
+  min-width: 0;
   min-height: 48px;
   padding: 8px;
   border-top: 1px dashed var(--background-modifier-border);
@@ -466,18 +461,32 @@
 .pm-lane-cell.is-collapsed { min-height: 0; }
 .pm-lane-cell.is-collapsed .pm-lane-cards { display: none; }
 .pm-lane-cell.is-collapsed .pm-lane-folded { display: block; }
-.pm-lanes .pm-kanban-col.pm-drag-over .pm-lane-cell {
-  background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+/* A folded column is a bar: its cells are empty and its name runs down the box */
+.pm-lane-col.is-collapsed { cursor: pointer; }
+.pm-lane-col.is-collapsed .pm-lane-cell { padding: 0; min-height: 0; }
+.pm-lane-col.is-collapsed .pm-lane-cell > * { display: none; }
+.pm-lane-col.is-collapsed .pm-col-title,
+.pm-lane-col.is-collapsed .pm-col-quickadd { display: none; }
+.pm-lane-col.is-collapsed .pm-lane-colbox {
+  display: flex;
+  justify-content: center;
+  padding-top: 72px;
 }
-.pm-lane-labels {
-  width: 170px;
+.pm-lane-col.is-collapsed .pm-lane-colbox::after {
+  content: attr(data-status);
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+.pm-lane-col.is-collapsed:hover .pm-lane-colbox { background: var(--background-modifier-hover); }
+.pm-lane-label {
   position: sticky;
   inset-inline-start: -16px;
   z-index: 3;
-  background: var(--background-primary);
-}
-.pm-lane-label {
+  min-width: 0;
   padding: 8px 4px;
+  background: var(--background-primary);
   border-top: 1px dashed var(--background-modifier-border);
 }
 .pm-lane-label .pm-group-head { flex-wrap: wrap; align-items: center; row-gap: 2px; }

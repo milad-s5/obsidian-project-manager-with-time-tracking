@@ -147,9 +147,9 @@ export class KanbanView extends ItemView {
     const titleOf = (slug: string) => projectTitleBySlug.get(slug) ?? slug;
     // Rows run across every column, so they come from all the columns' tasks
     const lanes = grouping === "lanes" ? groupByProject(columns.flatMap((c) => c.files), slugOf, titleOf) : [];
-    if (grouping === "lanes") this.renderLaneLabels(board, lanes);
+    if (grouping === "lanes") this.renderLaneLabels(board, lanes, statuses);
 
-    for (const { status, files: colFiltered } of columns) {
+    for (const [i, { status, files: colFiltered }] of columns.entries()) {
       const closed = isMutedStatus(status);
       const expanded = this.expandedCols.has(status);
       const hidden = closed && !expanded ? Math.max(0, colFiltered.length - COLLAPSED_LIMIT) : 0;
@@ -159,7 +159,11 @@ export class KanbanView extends ItemView {
         status,
         count: colFiltered.length,
         collapsed: this.plugin.isColumnCollapsed("tasks", status),
-        onToggle: (collapsed) => void this.plugin.setColumnCollapsed("tasks", status, collapsed),
+        onToggle: async (collapsed) => {
+          await this.plugin.setColumnCollapsed("tasks", status, collapsed);
+          // As rows, the board's grid holds the column widths
+          if (grouping === "lanes") await this.render();
+        },
         onDrop: async (taskPath) => {
           // Only a task belongs here: a project card dragged across from the
           // Projects board in another pane used to get the task status written
@@ -187,12 +191,20 @@ export class KanbanView extends ItemView {
       if (isBacklogStatus(status)) this.renderQuickAdd(col, cards, status);
 
       if (grouping === "lanes") {
-        // The column's head is one cell of the grid; the cards list gives way
-        // to one cell per row
+        // Every piece of the column is placed in the board's own grid: the
+        // head in the first row, a cell in each project's row, and behind
+        // them a box drawing the column. One grid sizes each row to its
+        // tallest cell, so a long title grows its row in every column.
+        const gridColumn = String(i + 2);
+        col.addClass("pm-lane-col");
         const top = createDiv({ cls: "pm-lane-top" });
-        col.insertBefore(top, col.firstChild);
-        Array.from(col.children).forEach((el) => { if (el !== top && el !== cards) top.appendChild(el); });
-        this.renderLaneCells(cards, lanes, colFiltered, status, closed, expanded, slugOf);
+        Array.from(col.children).forEach((el) => { if (el !== cards) top.appendChild(el); });
+        col.insertBefore(top, cards);
+        top.setCssStyles({ gridColumn, gridRow: "1" });
+        const box = createDiv({ cls: "pm-lane-colbox", attr: { "data-status": status } });
+        col.insertBefore(box, top);
+        box.setCssStyles({ gridColumn, gridRow: "1 / -1" });
+        this.renderLaneCells(cards, lanes, colFiltered, status, closed, expanded, slugOf, gridColumn);
       } else if (colFiltered.length === 0) {
         cards.createDiv({ cls: "pm-col-empty", text: "No tasks here" });
       } else if (grouping === "columns") {
@@ -263,15 +275,19 @@ export class KanbanView extends ItemView {
   }
 
   /** The first column of the rows: each project's name, task count and hours */
-  private renderLaneLabels(board: HTMLElement, lanes: ProjectGroup[]): void {
+  private renderLaneLabels(board: HTMLElement, lanes: ProjectGroup[], statuses: string[]): void {
     board.addClass("pm-lanes");
-    board.setCssProps({ "--pm-lane-count": String(Math.max(1, lanes.length)) });
+    board.setCssStyles({
+      gridTemplateColumns: ["170px", ...statuses.map((st) => (this.plugin.isColumnCollapsed("tasks", st) ? "40px" : "260px"))].join(" "),
+      gridTemplateRows: `auto repeat(${Math.max(1, lanes.length)}, auto)`,
+    });
     const labels = board.createDiv({ cls: "pm-lane-labels" });
-    labels.createDiv({ cls: "pm-lane-corner" });
-    if (!lanes.length) labels.createDiv({ cls: "pm-lane-label" });
-    for (const lane of lanes) {
+    labels.createDiv({ cls: "pm-lane-corner" }).setCssStyles({ gridColumn: "1", gridRow: "1" });
+    if (!lanes.length) labels.createDiv({ cls: "pm-lane-label" }).setCssStyles({ gridColumn: "1", gridRow: "2" });
+    for (const [k, lane] of lanes.entries()) {
       const collapsed = this.plugin.isProjectGroupCollapsed(this.currentWorkspace, lane.slug);
       const cell = labels.createDiv({ cls: "pm-lane-label", attr: { "data-lane": lane.slug } });
+      cell.setCssStyles({ gridColumn: "1", gridRow: String(k + 2) });
       cell.toggleClass("is-collapsed", collapsed);
       renderGroupHeading(cell, {
         group: lane,
@@ -289,15 +305,18 @@ export class KanbanView extends ItemView {
   /** One column's cell in every row; a folded row keeps only how many it holds */
   private renderLaneCells(
     cards: HTMLElement, lanes: ProjectGroup[], files: TFile[], status: string,
-    closed: boolean, expanded: boolean, slugOf: (f: TFile) => string
+    closed: boolean, expanded: boolean, slugOf: (f: TFile) => string, gridColumn: string
   ): void {
     if (!lanes.length) {
-      cards.createDiv({ cls: "pm-lane-cell" }).createDiv({ cls: "pm-col-empty", text: "No tasks here" });
+      const cell = cards.createDiv({ cls: "pm-lane-cell" });
+      cell.setCssStyles({ gridColumn, gridRow: "2" });
+      cell.createDiv({ cls: "pm-col-empty", text: "No tasks here" });
       return;
     }
-    for (const lane of lanes) {
+    for (const [k, lane] of lanes.entries()) {
       const mine = files.filter((f) => slugOf(f) === lane.slug);
       const cell = cards.createDiv({ cls: "pm-lane-cell", attr: { "data-lane": lane.slug } });
+      cell.setCssStyles({ gridColumn, gridRow: String(k + 2) });
       cell.toggleClass("is-collapsed", this.plugin.isProjectGroupCollapsed(this.currentWorkspace, lane.slug));
       cell.createDiv({ cls: "pm-lane-folded", text: mine.length ? String(mine.length) : "" });
       const list = cell.createDiv({ cls: "pm-lane-cards" });
