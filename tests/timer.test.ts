@@ -119,3 +119,13 @@ test("a timer stops into the workspace it was started in", async () => {
   await settle();
   assert.deepEqual(s.entries().map((f) => f.path.split("/")[0]), ["Work"]);
 });
+
+test("two entries in quick succession both count", async () => {
+  const s = await setup();
+  const task = await s.task("Busy");
+  s.app.metadataCache.delay = 50; // the cache lags well behind the writes
+  await s.tracker.addManualEntry(s.ws, task as never, 1, "2026-09-01");
+  await s.tracker.addManualEntry(s.ws, task as never, 2, "2026-09-02");
+  await settle(120);
+  assert.equal(s.fm(task).total_hours, 3);
+});

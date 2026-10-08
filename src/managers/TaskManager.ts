@@ -73,11 +73,6 @@ ${extraLines}---
   }
 
   async updateTaskHours(app: App, file: TFile, newHours: number, startTime: Date, endTime: Date): Promise<void> {
-    const cache = app.metadataCache.getFileCache(file);
-    const fm = cache?.frontmatter ?? {};
-    const currentHours = Number(fm.total_hours ?? 0);
-    const updatedHours = Math.round((currentHours + newHours) * 100) / 100;
-
     // The day the work counts for: the one it started on, which is also the
     // day the dashboard files it under. This used to be today, so an entry
     // added for last Monday was logged, and counted in days_count, as today.
@@ -85,8 +80,12 @@ ${extraLines}---
     const startStr = startTime.toISOString();
     const endStr = endTime.toISOString();
 
+    // Added to whatever the note holds at the moment of writing. Reading it
+    // from the metadata cache first, as this used to, could see a value from
+    // before the previous write had been parsed, and that write was lost.
     await app.fileManager.processFrontMatter(file, (fmatter) => {
-      fmatter.total_hours = updatedHours;
+      const current = Number(fmatter.total_hours ?? 0) || 0;
+      fmatter.total_hours = Math.round((current + newHours) * 100) / 100;
     });
 
     // Append row to time log table in content
