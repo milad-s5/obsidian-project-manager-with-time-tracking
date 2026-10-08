@@ -126,6 +126,8 @@ workspace: "[[Work]]"
 | New task / New project | ساخت تسک یا پروژه |
 | New task in backlog | همان «+» ستون بک‌لاگ، از هرجا |
 | Start timer on the open note | روی نوت باز، اگر تسک باشد |
+| Start a timer without a task | تسکش را حین کار یا موقع توقف انتخاب کن |
+| Choose the task for the running timer | انتخاب تسک برای تایمر در حال کار |
 | Pause or resume the timer | پاز و ادامه |
 | Stop the timer | ثبت زمان کارکرد |
 | Reset the timer | برگشت به صفر، همچنان در حال کار، بدون ثبت |

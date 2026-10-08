@@ -4,6 +4,7 @@
 
 ### New
 - Click a project's name on the task board, on a card or a project row, to open the project.
+- **Timer without a task.** Start it from the clock in the status bar or the *Start a timer without a task* command, before knowing what the time is for. Stopping asks which task it was, an existing one or a new one by the title typed; *Choose task…* does it while it runs, and starting the timer on a task gives it that task.
 - **Hide projects on the task board**, a setting: projects in these statuses, and their tasks, are left off the Kanban. Done, cancel and quite by default.
 
 ### Fixed

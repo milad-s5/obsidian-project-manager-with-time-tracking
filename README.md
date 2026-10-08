@@ -120,6 +120,8 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 | New task / New project | |
 | New task in backlog | the backlog column's "+", from anywhere |
 | Start timer on the open note | if the open note is a task |
+| Start a timer without a task | choose the task while it runs or when you stop |
+| Choose the task for the running timer | |
 | Pause or resume the timer | |
 | Stop the timer | logs the tracked time |
 | Reset the timer | back to zero, still running, nothing logged |
