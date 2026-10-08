@@ -313,17 +313,17 @@ export class TaskModal extends Modal {
   }
 
   /**
-   * Deletes the task note.
+   * Deletes the task note together with its time entry notes.
    *
    * Whether this is permanent or a trip to the trash is the vault owner's
-   * setting, and the dialog says which it will be. Its time entries are left alone and the count is spelled out —
-   * they record work that actually happened, and quietly destroying them
-   * alongside the task would be the wrong call.
+   * setting, and the dialog says which it will be. The time entries used to
+   * be left behind, so a deleted task's hours lived on in the dashboard and
+   * the reports with no task to remove them from.
    */
   private confirmDelete(file: TFile): void {
-    const entries = this.countTimeEntries(file.basename);
-    const tail = entries
-      ? ` Its ${entries} time ${entries === 1 ? "entry" : "entries"} will stay where they are.`
+    const entries = this.timeEntryFiles(file.basename);
+    const tail = entries.length
+      ? ` So ${entries.length === 1 ? "will its time entry" : `will its ${entries.length} time entries`}, and its hours leave the reports.`
       : "";
     new ConfirmModal(this.app, {
       title: "Delete this task?",
@@ -333,6 +333,7 @@ export class TaskModal extends Modal {
         if (this.plugin.timeTracker.getActiveTaskPath() === file.path) {
           this.plugin.timeTracker.discard();
         }
+        for (const entry of entries) await deleteNote(this.app, entry, this.plugin.settings.deleteBehaviour);
         await deleteNote(this.app, file, this.plugin.settings.deleteBehaviour);
         new Notice(`Deleted: ${this.title}`);
         this.close();
@@ -341,15 +342,12 @@ export class TaskModal extends Modal {
     }).open();
   }
 
-  private countTimeEntries(slug: string): number {
+  private timeEntryFiles(slug: string): TFile[] {
     const folders = timeEntryFolders(this.ws);
-    let n = 0;
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      if (!isUnderAnyFolder(f.path, folders)) continue;
-      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
-      if (fm && linkSlug(fm.task) === slug) n++;
-    }
-    return n;
+    return this.app.vault.getMarkdownFiles().filter((f) => {
+      if (!isUnderAnyFolder(f.path, folders)) return false;
+      return linkSlug(this.app.metadataCache.getFileCache(f)?.frontmatter?.task) === slug;
+    });
   }
 
   private async submitAndClose(): Promise<void> {
