@@ -271,6 +271,8 @@ function round2(n: number): number { return Math.round(n * 100) / 100; }
 
 export interface PlacedTree { tree: ForestTree; x: number; y: number; scale: number }
 export interface Flower { x: number; y: number; tint: number }
+/** Bushes, tufts of grass and stones, so the land is not bare */
+export interface Decor { x: number; y: number; size: number; kind: "bush" | "tuft" | "stone" }
 
 export interface PlacedGrove {
   grove: Grove;
@@ -278,13 +280,15 @@ export interface PlacedGrove {
   cy: number;
   rx: number;
   ry: number;
-  /** Top of the label under the grove */
+  /** Top of the label under the grove, and how wide it may grow */
   labelY: number;
+  labelW: number;
   scale: number;
   trees: PlacedTree[];
   /** Trees in the grove not drawn, past the cap */
   hidden: number;
   flowers: Flower[];
+  decor: Decor[];
   /** Where a finished project's cabin stands */
   cabin: { x: number; y: number } | null;
 }
@@ -300,36 +304,51 @@ export interface ForestLayout {
   loose: PlacedTree[];
   looseHidden: number;
   groves: PlacedGrove[];
+  /** Bushes and grass on the open land between the groves */
+  wild: Decor[];
   /** Top of the old forest, when there is one */
   oldTop: number | null;
 }
 
 export const HORIZON = 120;
-const ROAD_BAND = 84;
-const GROVE_TOP = 58;
-const LABEL_H = 40;
+/** Trees are drawn this much bigger than their base size */
+export const TREE_SCALE = 1.45;
+const ROAD_BAND = 76;
+const LABEL_H = 44;
+const ROW_GAP = 10;
 const OLD_HEADER = 44;
-const OLD_SCALE = 0.82;
-const CELL_MIN = 300;
+const OLD_SCALE = 0.85;
+const CELL_MIN = 240;
 const FLOWERS_MAX = 50;
+const WILD_MAX = 140;
+/** Bushes and grass inside all the groves together */
+const DECOR_MAX = 240;
 
 /** How much room a tree takes on the ground, before scaling */
 export function treeRadius(tree: ForestTree): number {
   if (tree.kind === "old") return tree.species === "pine" ? 15 : 19;
   if (tree.kind === "young") return 11;
-  if (tree.kind === "sapling") return 7;
-  return 5;
+  if (tree.kind === "sapling") return 8;
+  return 6;
+}
+
+/** How far a tree reaches up from where it stands, before scaling */
+export function treeHeight(tree: ForestTree): number {
+  if (tree.kind === "old") return tree.species === "pine" ? 50 : 54;
+  if (tree.kind === "young") return tree.species === "pine" ? 36 : 32;
+  if (tree.kind === "sapling") return tree.species === "pine" ? 26 : 22;
+  return 13;
 }
 
 export function layoutForest(forest: Forest, width: number, rtl = false): ForestLayout {
   const w = Math.max(320, Math.round(width));
   const cols = Math.max(1, Math.min(4, Math.floor(w / CELL_MIN)));
-  const cellW = w / cols;
   const groveCount = forest.groves.length + forest.old.length;
   // Fewer trees each when there are many groves, so the scene stays light
   const cap = Math.max(12, Math.min(GROVE_MAX_TREES, Math.floor(SCENE_MAX_TREES / Math.max(1, groveCount))));
+  const decorCap = Math.max(2, Math.min(14, Math.floor(DECOR_MAX / Math.max(1, groveCount))));
 
-  const roadY = HORIZON + 34;
+  const roadY = HORIZON + 30;
   const road: { x: number; y: number }[] = [];
   for (let i = 0; i <= 32; i++) {
     const x = -20 + ((w + 40) * i) / 32;
@@ -339,16 +358,16 @@ export function layoutForest(forest: Forest, width: number, rtl = false): Forest
   const loose: PlacedTree[] = [];
   let looseHidden = 0;
   if (forest.loose) {
-    const room = Math.max(4, Math.floor((w - 180) / 30));
+    // Clear of the words at the road's start
+    const start = w > 700 ? 280 : 170;
+    const room = Math.max(4, Math.floor((w - start - 10) / 34));
     const shown = forest.loose.trees.slice(0, room);
     looseHidden = forest.loose.trees.length - shown.length;
     const rnd = seeded(hashString(LOOSE_KEY));
-    // Clear of the words at the road's start
-    const start = 170;
     shown.forEach((tree, i) => {
       const x = start + ((i + 0.5) * (w - start - 10)) / shown.length + (rnd() - 0.5) * 10;
       const above = i % 2 === 0;
-      loose.push({ tree, x: mirror(x, w, rtl), y: roadAt(x, w, roadY) + (above ? -14 : 30), scale: above ? 0.8 : 0.95 });
+      loose.push({ tree, x: mirror(x, w, rtl), y: roadAt(x, w, roadY) + (above ? -13 : 28), scale: TREE_SCALE * (above ? 0.85 : 1) });
     });
     loose.sort((a, b) => a.y - b.y);
   }
@@ -358,18 +377,22 @@ export function layoutForest(forest: Forest, width: number, rtl = false): Forest
   const placeRows = (list: Grove[], scale: number) => {
     for (let start = 0; start < list.length; start += cols) {
       const row = list.slice(start, start + cols);
-      const sizes = row.map((g) => groveSize(Math.min(cap, g.trees.length), cellW, scale));
+      // A last row that is not full is spread over the width
+      const slotW = w / row.length;
+      const sizes = row.map((g) => groveSize(g.trees.slice(0, cap), slotW, scale));
       const maxRy = Math.max(...sizes.map((s) => s.ry));
-      const centre = y + GROVE_TOP * scale + maxRy;
+      // Room above for the tallest tree that stands near the back
+      const reach = Math.max(...row.map((g) => Math.max(0, ...g.trees.slice(0, cap).map((t) => treeHeight(t))))) * TREE_SCALE * scale;
+      const centre = y + Math.max(16, reach * 0.75) + maxRy;
       row.forEach((grove, i) => {
         const rnd = seeded(hashString(grove.key) ^ 0x5bd1e995);
         const { rx, ry } = sizes[i];
-        const slack = Math.max(0, cellW / 2 - rx - 10);
-        const cx = mirror(cellW * i + cellW / 2 + (rnd() - 0.5) * slack, w, rtl);
+        const slack = Math.max(0, slotW / 2 - rx - 14);
+        const cx = mirror(slotW * i + slotW / 2 + (rnd() - 0.5) * slack, w, rtl);
         const cy = centre + (rnd() - 0.5) * Math.max(0, maxRy - ry);
-        groves.push(placeGrove(grove, cx, cy, rx, ry, scale, cap));
+        groves.push({ ...placeGrove(grove, cx, cy, rx, ry, scale, cap, decorCap), labelW: Math.max(140, slotW - 8) });
       });
-      y = centre + maxRy + LABEL_H + 12;
+      y = centre + maxRy + LABEL_H + ROW_GAP;
     }
   };
 
@@ -380,8 +403,13 @@ export function layoutForest(forest: Forest, width: number, rtl = false): Forest
     y += OLD_HEADER;
     placeRows(forest.old, OLD_SCALE);
   }
+  const height = Math.max(y + 16, HORIZON + ROAD_BAND + 160);
 
-  return { width: w, height: Math.max(y + 16, HORIZON + ROAD_BAND + 160), horizon: HORIZON, road, loose, looseHidden, groves, oldTop };
+  return {
+    width: w, height, horizon: HORIZON, road, loose, looseHidden, groves,
+    wild: scatterWild(w, height, roadY, groves, oldTop),
+    oldTop,
+  };
 }
 
 function roadAt(x: number, w: number, base: number): number {
@@ -392,35 +420,41 @@ function mirror(x: number, w: number, rtl: boolean): number {
   return rtl ? w - x : x;
 }
 
-function groveSize(trees: number, cellW: number, scale: number): { rx: number; ry: number } {
-  const rx = Math.min(cellW * 0.44, Math.max(80, 34 + 30 * Math.sqrt(trees))) * scale;
+/** Big enough to hold its trees with a little room, and no bigger */
+function groveSize(trees: ForestTree[], cellW: number, scale: number): { rx: number; ry: number } {
+  const room = trees.reduce((sum, t) => sum + (treeRadius(t) * TREE_SCALE * 2.1) ** 2, 0);
+  const rx = Math.min(cellW * 0.44, Math.max(58, Math.sqrt(room / (Math.PI * 0.42)) * 1.15 + 18)) * scale;
   return { rx, ry: rx * 0.42 };
 }
 
-function placeGrove(grove: Grove, cx: number, cy: number, rx: number, ry: number, scale: number, cap: number): PlacedGrove {
+function placeGrove(
+  grove: Grove, cx: number, cy: number, rx: number, ry: number, scale: number, cap: number, decorCap: number
+): Omit<PlacedGrove, "labelW"> {
   const rnd = seeded(hashString(grove.key));
   const shown = grove.trees.slice(0, cap);
   const cabin = grove.state === "finished" ? { x: cx + rx * 0.5, y: cy + ry * 0.15 } : null;
   const taken: { x: number; y: number; r: number }[] = cabin ? [{ x: cabin.x, y: cabin.y, r: 26 * scale }] : [];
   const trees: PlacedTree[] = [];
+  const s = scale * TREE_SCALE;
 
   for (const tree of shown) {
-    const r = treeRadius(tree) * scale;
+    const r = treeRadius(tree) * s;
     let best: { x: number; y: number; gap: number } | null = null;
     for (let attempt = 0; attempt < 40; attempt++) {
       const a = rnd() * Math.PI * 2;
-      const d = Math.sqrt(rnd()) * 0.86;
+      // Nearer the middle while there is room, so a few trees stand together
+      const d = Math.sqrt(rnd()) * 0.8;
       const x = cx + Math.cos(a) * d * rx;
       const y = cy + Math.sin(a) * d * ry + 4 * scale;
       // How close the nearest tree comes, in units of the room both need
       let gap = Infinity;
       for (const t of taken) gap = Math.min(gap, Math.hypot(t.x - x, (t.y - y) * 1.7) / (t.r + r));
       if (!best || gap > best.gap) best = { x, y, gap };
-      if (gap >= 0.8) break;
+      if (gap >= 0.85) break;
     }
     if (!best) continue;
     taken.push({ x: best.x, y: best.y, r });
-    trees.push({ tree, x: best.x, y: best.y, scale: scale * (0.92 + 0.12 * ((best.y - (cy - ry)) / (2 * ry))) });
+    trees.push({ tree, x: best.x, y: best.y, scale: s * (0.92 + 0.12 * ((best.y - (cy - ry)) / (2 * ry))) });
   }
   // Drawn back to front
   trees.sort((a, b) => a.y - b.y);
@@ -433,5 +467,43 @@ function placeGrove(grove: Grove, cx: number, cy: number, rx: number, ry: number
     flowers.push({ x: cx + Math.cos(a) * d * rx, y: cy + Math.sin(a) * d * ry, tint: i % 4 });
   }
 
-  return { grove, cx, cy, rx, ry, labelY: cy + ry + 8, scale, trees, hidden: grove.trees.length - shown.length, flowers, cabin };
+  // Bushes and grass in the gaps between the trees
+  const decor: Decor[] = [];
+  const dr = seeded(hashString(grove.key) ^ 0x68e31da4);
+  const want = Math.min(decorCap, Math.round((rx * ry) / 900));
+  for (let i = 0, tries = 0; decor.length < want && tries < want * 8; tries++) {
+    const a = dr() * Math.PI * 2;
+    const d = 0.25 + Math.sqrt(dr()) * 0.65;
+    const x = cx + Math.cos(a) * d * rx;
+    const y = cy + Math.sin(a) * d * ry;
+    if (taken.some((t) => Math.hypot(t.x - x, (t.y - y) * 1.7) < t.r + 8 * scale)) continue;
+    decor.push({ x, y, size: scale * (0.8 + dr() * 0.5), kind: i++ % 3 === 0 ? "bush" : "tuft" });
+  }
+
+  return { grove, cx, cy, rx, ry, labelY: cy + ry + 8, scale, trees, hidden: grove.trees.length - shown.length, flowers, decor, cabin };
+}
+
+/** Grass, bushes and stones over the open land, clear of groves and their names */
+function scatterWild(w: number, h: number, roadY: number, groves: PlacedGrove[], oldTop: number | null): Decor[] {
+  const rnd = seeded(0x1b873593);
+  const top = roadY + 26;
+  const want = Math.min(WILD_MAX, Math.round((w * (h - top)) / 7000));
+  const out: Decor[] = [];
+  for (let tries = 0; out.length < want && tries < want * 6; tries++) {
+    const x = 8 + rnd() * (w - 16);
+    const y = top + rnd() * (h - top - 8);
+    const size = 0.7 + rnd() * 0.6;
+    if (oldTop !== null && Math.abs(y - oldTop) < 40) continue;
+    const blocked = groves.some((g) => {
+      const dx = (x - g.cx) / (g.rx + 16);
+      const dy = (y - g.cy) / (g.ry + 14);
+      const inLabel = Math.abs(x - g.cx) < Math.max(90, g.rx) && y > g.labelY - 6 && y < g.labelY + 46;
+      const underTrees = Math.abs(x - g.cx) < g.rx && y < g.cy && y > g.cy - g.ry - 60 * g.scale;
+      return dx * dx + dy * dy < 1 || inLabel || underTrees;
+    });
+    if (blocked) continue;
+    const r = rnd();
+    out.push({ x, y, size, kind: r < 0.62 ? "tuft" : r < 0.88 ? "bush" : "stone" });
+  }
+  return out.sort((a, b) => a.y - b.y);
 }

@@ -167,6 +167,19 @@ test("groves never overlap, and their trees stay on them", () => {
   }
 });
 
+test("bushes and grass keep off the groves and their names", () => {
+  const layout = layoutForest(bigForest(9, 6), 900);
+  assert.ok(layout.wild.length > 20, `some scenery (${layout.wild.length})`);
+  for (const d of layout.wild) {
+    for (const g of layout.groves) {
+      const dx = (d.x - g.cx) / g.rx;
+      const dy = (d.y - g.cy) / g.ry;
+      assert.ok(dx * dx + dy * dy >= 1, "not on a grove");
+      assert.ok(!(Math.abs(d.x - g.cx) < 80 && d.y > g.labelY && d.y < g.labelY + 36), "not on a name");
+    }
+  }
+});
+
 test("a lot of work still draws a light scene", () => {
   const forest = bigForest(40, 80);
   const layout = layoutForest(forest, 1000);
