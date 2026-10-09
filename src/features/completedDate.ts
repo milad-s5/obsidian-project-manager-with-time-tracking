@@ -26,6 +26,8 @@ export function setupCompletedDate(plugin: ProjectManagerPlugin): void {
         if (plugin.app.vault.getAbstractFileByPath(file.path) !== file) return;
         const fm = plugin.app.metadataCache.getFileCache(file)?.frontmatter;
         if (!fm || isDoneStatus(String(fm.status ?? "")) !== done) return;
+        // A note copied or synced in already done says itself when it was finished
+        if (change.from === null && /^\d{4}-\d{2}-\d{2}/.test(String(fm.end ?? ""))) return;
         const end = done ? todayISO() : "";
         if (String(fm.end ?? "") === end) return;
         void plugin.app.fileManager.processFrontMatter(file, (f) => { f.end = end; }).catch(() => undefined);

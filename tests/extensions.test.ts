@@ -58,6 +58,27 @@ test("moving a task to done fills its end date, reopening it empties it", async 
   assert.equal(fm().end, "");
 });
 
+test("a note that comes in already done keeps its end date", async () => {
+  const s = await setup();
+  const events = new PmEvents();
+  const watcher = new StatusWatcher(s.app as never, events, () => s.ws);
+  s.app.metadataCache.on("changed", (f: TFile) => watcher.onChanged(f as never));
+  watcher.seed();
+  setupCompletedDate({ app: s.app, events, registerEvent: () => undefined } as never);
+
+  // As notes copied or synced into the vault
+  const note = (end: string) =>
+    `---\ntype: task\ntitle: Old\nstatus: done\nworkspace: "[[${s.ws.name}]]"\nend: ${end}\n---\n`;
+  const dated = await s.app.vault.create(`${s.ws.tasksFolder}/dated.md`, note("2026-03-14"));
+  const undated = await s.app.vault.create(`${s.ws.tasksFolder}/undated.md`, note('""'));
+  await settle();
+  await new Promise((r) => setTimeout(r, 900));
+  await settle();
+  const end = (f: TFile) => String(s.app.metadataCache.getFileCache(f)?.frontmatter?.end ?? "");
+  assert.equal(end(dated), "2026-03-14");
+  assert.equal(end(undated), todayISO());
+});
+
 test("a task closed before the date was kept counts as done on its last logged day", async () => {
   const s = await setup();
   const t = await s.task("Old", "", "done");
