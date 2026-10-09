@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MockApp, settle, TFile } from "./obsidian";
-import { linkSlug, renameHeading, slugify, yamlString } from "../src/utils/FrontmatterUtils";
+import { linkSlug, MAX_NAME_BYTES, renameHeading, shortenName, slugify, utf8Length, yamlString } from "../src/utils/FrontmatterUtils";
 
 test("linkSlug reduces any link form to the note name", () => {
   assert.equal(linkSlug("[[alpha]]"), "alpha");
@@ -77,4 +77,14 @@ test("renameHeading no-ops on unchanged or empty titles", async () => {
 test("renameHeading tolerates stray spaces", async () => {
   const out = await renamed("#  Old name  \n", " Old name ", "New");
   assert.ok(out.includes("# New"));
+});
+
+test("long titles make short file names that a phone can sync", () => {
+  const long = "بررسی خرید مستر کارت یا ویزا کارت برای باز کردن حساب هایی مثل حساب گوگل برای انتشار گوگل اکستنشن";
+  const slug = slugify(long);
+  assert.ok(utf8Length(slug) <= MAX_NAME_BYTES, `${utf8Length(slug)} bytes`);
+  assert.ok(!slug.endsWith("-"));
+  assert.ok(long.replace(/ /g, "-").startsWith(slug), "cut, not changed");
+  assert.equal(slugify("Short title"), "short-title");
+  assert.equal(shortenName("a".repeat(200)).length, MAX_NAME_BYTES);
 });

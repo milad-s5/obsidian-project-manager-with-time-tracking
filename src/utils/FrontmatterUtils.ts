@@ -101,14 +101,40 @@ export function yamlString(value: string): string {
 }
 
 /**
+ * The longest a task or project note's name may be, in UTF-8 bytes. Phones
+ * allow 255 bytes for a file name, a Persian letter takes two, and a time
+ * entry's name is its task's name with a date added, so a long title made
+ * notes that Windows kept but Android could not sync.
+ */
+export const MAX_NAME_BYTES = 80;
+
+export function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
+/** Cuts a note name to fit, at a word break when one is near the end */
+export function shortenName(name: string, maxBytes = MAX_NAME_BYTES): string {
+  if (utf8Length(name) <= maxBytes) return name;
+  let out = "";
+  for (const ch of name) {
+    if (utf8Length(out + ch) > maxBytes) break;
+    out += ch;
+  }
+  const cut = out.lastIndexOf("-");
+  if (cut > out.length / 2) out = out.slice(0, cut);
+  return out.replace(/-+$/, "");
+}
+
+/**
  * A file name from a title. Letters, marks and digits of any script are
  * kept: only Latin and Persian/Arabic used to be, so a title such as
- * "Проект" came out empty.
+ * "Проект" came out empty. The title itself is not shortened, only the
+ * name of its file.
  */
 export function slugify(title: string): string {
-  return title.toLowerCase()
+  return shortenName(title.toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^\p{L}\p{M}\p{N}-]/gu, "")
     .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/^-|-$/g, ""));
 }

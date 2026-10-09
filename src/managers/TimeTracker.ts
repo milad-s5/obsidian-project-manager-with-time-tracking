@@ -4,6 +4,7 @@ import { toISOFileStamp, todayString } from "../utils/DateUtils";
 import { isoToDate } from "../utils/Jalali";
 import { TaskManager } from "./TaskManager";
 import { isBacklogStatus } from "../utils/StatusColors";
+import { shortenName } from "../utils/FrontmatterUtils";
 import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
 import type { TimeLogged } from "../core/Extensions";
 
@@ -321,11 +322,13 @@ export class TimeTracker {
     endTime: Date
   ): Promise<TFile> {
     const stamp = toISOFileStamp(endTime);
-    let path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${taskSlug}_${stamp}.md`);
+    // A task named before names were kept short still gets a short entry name
+    const name = shortenName(taskSlug);
+    let path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${name}_${stamp}.md`);
 
     let counter = 1;
     while (this.app.vault.getAbstractFileByPath(path)) {
-      path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${taskSlug}_${stamp}_${counter}.md`);
+      path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${name}_${stamp}_${counter}.md`);
       counter++;
     }
 
