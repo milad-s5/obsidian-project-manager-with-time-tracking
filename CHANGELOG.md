@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- A note copied or synced into the vault already done had its end date changed to the day it arrived. It now keeps the date it came with.
+
 ## 1.5.5
 
 ### New
