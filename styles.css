@@ -425,6 +425,25 @@
   transition: opacity 0.12s;
 }
 .pm-group-pin svg { width: 12px; height: 12px; }
+.pm-group-add {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.pm-group-add svg { width: 13px; height: 13px; }
+.pm-group-head:hover .pm-group-add,
+.pm-group-add:focus-visible { opacity: 1; }
+.pm-group-add:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+/* No hover on a phone: the pin and "+" stay in view, quietly */
+@media (hover: none) {
+  .pm-group-add, .pm-group-pin { opacity: 0.6; }
+}
 .pm-group-head:hover .pm-group-pin,
 .pm-group-pin:focus-visible { opacity: 1; }
 .pm-group-pin:hover { color: var(--text-normal); background: var(--background-modifier-hover); }

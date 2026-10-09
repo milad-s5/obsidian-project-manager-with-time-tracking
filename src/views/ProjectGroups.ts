@@ -75,6 +75,10 @@ export function renderGroupHeading(
     pinned?: boolean; onPin?: () => void;
     /** Makes the name open the project */
     onOpen?: () => void;
+    /** A "+" for a new task in this group */
+    onAdd?: () => void;
+    /** Right-click, or a long press on a phone */
+    onMenu?: (e: MouseEvent) => void;
   }
 ): HTMLElement {
   const head = parent.createDiv({ cls: "pm-group-head", attr: { role: "button", tabindex: "0" } });
@@ -100,6 +104,21 @@ export function renderGroupHeading(
     const press = (e: Event) => { e.stopPropagation(); e.preventDefault(); onPin(); };
     pin.addEventListener("click", press);
     pin.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") press(e); });
+  }
+  if (o.onAdd) {
+    const onAdd = o.onAdd;
+    const add = head.createSpan({
+      cls: "pm-group-add",
+      attr: { role: "button", tabindex: "0", "aria-label": `New task in ${o.group.title}` },
+    });
+    setIcon(add, "plus");
+    const press = (e: Event) => { e.stopPropagation(); e.preventDefault(); onAdd(); };
+    add.addEventListener("click", press);
+    add.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") press(e); });
+  }
+  if (o.onMenu) {
+    const onMenu = o.onMenu;
+    head.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); onMenu(e); });
   }
   head.createSpan({ cls: "pm-col-count", text: String(o.count) });
   head.createSpan({ cls: "pm-group-hours", text: formatHours(o.hours) });

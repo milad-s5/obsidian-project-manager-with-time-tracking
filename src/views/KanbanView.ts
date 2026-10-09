@@ -281,7 +281,7 @@ export class KanbanView extends ItemView {
           box.toggleClass("is-collapsed", c);
           void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, group.slug, c);
         },
-        ...this.pinOptions(group.slug),
+        ...this.groupActions(group.slug, status),
       });
       const list = box.createDiv({ cls: "pm-group-cards" });
       for (const task of group.files) this.renderTaskCard(list, task, status);
@@ -317,20 +317,35 @@ export class KanbanView extends ItemView {
           board.querySelectorAll(`[data-lane="${CSS.escape(lane.slug)}"]`).forEach((el) => el.toggleClass("is-collapsed", c));
           void this.plugin.setProjectGroupCollapsed(this.currentWorkspace, lane.slug, c);
         },
-        ...this.pinOptions(lane.slug),
+        ...this.groupActions(lane.slug),
       });
       this.renderResizeHandle(board, cell);
     }
   }
 
-  /** A project's pin and link; the "No project" group has neither */
-  private pinOptions(slug: string): { pinned?: boolean; onPin?: () => void; onOpen?: () => void } {
-    if (!slug) return {};
-    return {
-      pinned: this.plugin.isProjectPinned(this.currentWorkspace, slug),
-      onPin: () => void this.plugin.toggleProjectPinned(this.currentWorkspace, slug),
-      onOpen: () => this.openProject(slug),
+  /**
+   * What a project's heading offers: a "+" for a new task in it (in the
+   * column's status inside a column), its pin and link, and all of them on
+   * right-click. The "No project" group gets the "+" alone.
+   */
+  private groupActions(slug: string, status?: string): {
+    pinned?: boolean; onPin?: () => void; onOpen?: () => void; onAdd: () => void; onMenu: (e: MouseEvent) => void;
+  } {
+    const ws = this.currentWorkspace;
+    const onAdd = () => this.plugin.openNewTaskModal(ws, { projectSlug: slug || undefined, status });
+    const pinned = !!slug && this.plugin.isProjectPinned(ws, slug);
+    const onPin = () => void this.plugin.toggleProjectPinned(ws, slug);
+    const onOpen = () => this.openProject(slug);
+    const onMenu = (e: MouseEvent) => {
+      const menu = new Menu();
+      menu.addItem((i) => i.setTitle(slug ? "New task in this project" : "New task").setIcon("plus").onClick(onAdd));
+      if (slug) {
+        menu.addItem((i) => i.setTitle("Open project").setIcon("folder-open").onClick(onOpen));
+        menu.addItem((i) => i.setTitle(pinned ? "Unpin" : "Pin to the top").setIcon(pinned ? "pin-off" : "pin").onClick(onPin));
+      }
+      menu.showAtMouseEvent(e);
     };
+    return slug ? { pinned, onPin, onOpen, onAdd, onMenu } : { onAdd, onMenu };
   }
 
   /** The project's own dialog, as clicking it on the projects board does */
