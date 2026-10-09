@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Forest**, a tab on the project dashboard. Every task finished in the period grows a tree in its project's grove, bigger the more hours went into it; time on a task not done yet grows a sprout, and pomodoros come up as flowers. Pinned projects come first, finished and stopped ones move to an old forest with a cabin for the finished, and once there are many, the small ones share a meadow. Hover a tree for its task, click it to open the task, or click a grove's name to open the project. Follows the period, calendar, direction and theme; can be turned off in settings.
+
 ## 1.5.5
 
 ### New

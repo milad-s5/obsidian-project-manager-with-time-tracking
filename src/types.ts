@@ -59,6 +59,8 @@ export interface ProjectManagerSettings {
   lastSeenVersion: string;
   /** Open "What's new" by itself after an update */
   showWhatsNew: boolean;
+  /** A forest tab on the project dashboard */
+  showForest: boolean;
   /**
    * Set once "backlog" has been offered to this vault. An existing vault gets
    * it added to its statuses on the first load after the update; the flag is
@@ -110,6 +112,7 @@ export const DEFAULT_SETTINGS: ProjectManagerSettings = {
   pomodoro: { ...DEFAULT_POMODORO },
   lastSeenVersion: "",
   showWhatsNew: true,
+  showForest: true,
   backlogAdded: true,
 };
 

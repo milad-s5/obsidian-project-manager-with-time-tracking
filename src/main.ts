@@ -17,6 +17,7 @@ import { Extensions, PmEvents, StatusWatcher } from "./core/Extensions";
 import { setupStatusBarTimer } from "./features/statusBarTimer";
 import { setupCompletedDate } from "./features/completedDate";
 import { setupWhatsNew } from "./features/whatsNew";
+import { setupForest } from "./features/forest";
 import { setupPomodoro } from "./features/pomodoro";
 import { ProjectManagerApi, createApi } from "./api";
 import { Calendar, createCalendar } from "./utils/Calendar";
@@ -288,6 +289,7 @@ export default class ProjectManagerPlugin extends Plugin {
     setupPomodoro(this);
     setupCompletedDate(this);
     setupWhatsNew(this);
+    setupForest(this);
 
     // Ribbon icons for quick access
     this.addRibbonIcon("square-kanban", "Open kanban board", () => void this.openKanban());

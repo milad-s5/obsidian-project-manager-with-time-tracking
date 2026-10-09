@@ -1369,3 +1369,91 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 .pm-whatsnew-version li { margin: 3px 0; line-height: 1.5; }
 .pm-whatsnew .pm-modal-btns { align-items: center; }
 .pm-whatsnew-link { margin-inline-end: auto; font-size: 12.5px; }
+
+/* ===== Forest ===== */
+/* The forest tab: the scene on one side, the summary on the other, and
+   one above the other once the pane gets narrow */
+.pm-forest-box { container-type: inline-size; }
+.pm-forest { display: flex; gap: 16px; align-items: flex-start; }
+.pm-forest-scenebox {
+  flex: 1 1 auto; min-width: 0; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+.pm-forest-side { flex: 0 0 290px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pm-forest-side .pm-db-card { margin: 0; }
+@container (max-width: 760px) {
+  .pm-forest { flex-direction: column; align-items: stretch; }
+  .pm-forest-side { flex-basis: auto; }
+}
+
+.pm-forest-scene { position: relative; }
+.pm-forest-svg { display: block; }
+.pm-forest-oldland { fill: #000000; opacity: 0.05; }
+body.theme-dark .pm-forest-oldland { opacity: 0.18; }
+
+.pm-forest-tree { cursor: pointer; outline: none; }
+.pm-forest-tree:hover, .pm-forest-tree:focus-visible { filter: brightness(1.12) drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)); }
+.pm-forest-tree.is-new { transform-box: fill-box; transform-origin: 50% 100%; animation: pm-forest-grow 0.9s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes pm-forest-grow { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pm-forest-grove.is-stopped { opacity: 0.55; }
+.pm-forest-grove.is-flash .pm-forest-plot { animation: pm-forest-flash 1.6s ease-out; }
+@keyframes pm-forest-flash { 0%, 60% { stroke-width: 5; stroke-opacity: 1; stroke-dasharray: none; } }
+
+/* Names under the groves, and the other words on the scene */
+.pm-forest-label {
+  position: absolute; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3px 10px; border-radius: 12px; font-size: 12px; line-height: 1.35;
+  background: rgba(20, 20, 20, 0.66); color: #ffffff; white-space: nowrap;
+}
+.pm-forest-label.is-stopped, .pm-forest-label.is-idle { background: rgba(20, 20, 20, 0.5); }
+.pm-forest-label.is-flash { animation: pm-forest-pop 1.6s ease-out; }
+@keyframes pm-forest-pop { 0%, 60% { box-shadow: 0 0 0 3px var(--pm-project-color); } }
+.pm-forest-label-head { display: flex; align-items: center; gap: 6px; max-width: 100%; }
+.pm-forest-label-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pm-project-color); }
+.pm-forest-label-pin { display: inline-flex; color: #ffd166; }
+.pm-forest-label-pin svg { width: 12px; height: 12px; }
+.pm-forest-label-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; max-width: 100%; unicode-bidi: plaintext; }
+.pm-forest-label-name.is-link { cursor: pointer; }
+.pm-forest-label-name.is-link:hover, .pm-forest-label-name.is-link:focus-visible { text-decoration: underline; outline: none; }
+.pm-forest-label-meta { opacity: 0.8; font-size: 11px; unicode-bidi: plaintext; }
+.pm-forest-loose-label, .pm-forest-oldhead {
+  position: absolute; inset-inline-start: 12px; padding: 2px 10px; border-radius: 10px;
+  font-size: 11.5px; background: rgba(20, 20, 20, 0.55); color: #ffffff; unicode-bidi: plaintext;
+}
+/* English words in a right-to-left forest keep their own order */
+.pm-forest[dir="rtl"] :is(.pm-db-hero-row, .pm-db-hero-sub, .pm-db-hero-label, .pm-forest-chart-title) { unicode-bidi: plaintext; }
+.pm-forest-oldhead-title { font-weight: 650; }
+.pm-forest-empty {
+  position: absolute; left: 50%; transform: translateX(-50%); max-width: 80%;
+  text-align: center; padding: 12px 18px; border-radius: 12px;
+  background: rgba(20, 20, 20, 0.62); color: #ffffff; font-size: 12.5px;
+}
+.pm-forest-empty-head { font-weight: 650; font-size: 14px; margin-bottom: 4px; }
+.pm-forest-tip {
+  position: absolute; z-index: 5; pointer-events: none; max-width: 260px;
+  background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
+  border-radius: 8px; padding: 7px 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+}
+.pm-forest-tip-head { font-size: 12px; font-weight: 650; color: var(--text-normal); margin-bottom: 3px; unicode-bidi: plaintext; }
+.pm-forest-tip-row { font-size: 11px; color: var(--text-muted); line-height: 1.5; unicode-bidi: plaintext; }
+
+/* The side panel */
+.pm-forest-chart-title { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); }
+.pm-forest-groves { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
+.pm-forest-grove-row {
+  display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px;
+  font-size: 12.5px; cursor: pointer;
+}
+.pm-forest-grove-row:hover, .pm-forest-grove-row:focus-visible { background: var(--background-modifier-hover); outline: none; }
+.pm-forest-grove-row.is-stopped, .pm-forest-grove-row.is-idle { color: var(--text-muted); }
+.pm-forest-grove-words { flex: 1; min-width: 0; }
+.pm-forest-grove-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.pm-forest-grove-meta { color: var(--text-muted); font-size: 11px; unicode-bidi: plaintext; }
+.pm-forest-legend { display: flex; flex-direction: column; gap: 4px; }
+.pm-forest-legend-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+.pm-forest-legend-icon { flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-forest-tree.is-new, .pm-forest-grove.is-flash .pm-forest-plot, .pm-forest-label.is-flash { animation: none; }
+}
