@@ -190,9 +190,19 @@
 .pm-kanban-col.is-collapsed .pm-col-add {
   display: none;
 }
+/* The name runs down the bar, just under the arrow and count. It is turned
+   with a rotation rather than writing-mode, which some setups ignore and
+   left the name lying flat, cut off by the bar ("ncel" for cancel). Taken
+   out of the flow, it can never run into the count either. */
+.pm-kanban-col.is-collapsed .pm-col-header { position: relative; }
 .pm-kanban-col.is-collapsed .pm-col-title {
-  writing-mode: vertical-rl;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
   white-space: nowrap;
+  writing-mode: horizontal-tb;
+  transform-origin: 0 0;
+  transform: rotate(90deg) translateY(-50%);
 }
 .pm-kanban-col .pm-col-cards,
 .pm-kanban-col .pm-col-quickadd {
@@ -491,15 +501,6 @@
 .pm-lane-col.is-collapsed .pm-lane-cell > * { display: none; }
 .pm-lane-col.is-collapsed .pm-col-quickadd { display: none; }
 .pm-lane-col.is-collapsed .pm-lane-top { overflow: visible; }
-.pm-lanes > .pm-lane-col.is-collapsed .pm-col-title,
-.pm-lane-col.is-collapsed .pm-col-title {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  width: max-content;
-  margin-inline: auto;
-}
 .pm-lane-col.is-collapsed:hover .pm-lane-colbox { background: var(--background-modifier-hover); }
 .pm-lane-label {
   position: sticky;
