@@ -30,11 +30,12 @@ Everything lives in your vault as plain notes with frontmatter. There is no data
 
 **Right-to-left boards.** A setting mirrors the Kanban and the projects board, so the first column starts on the right and cards read right to left. Each piece of text keeps the order of its own language.
 
-**Dashboard.** Three tabs:
+**Dashboard.** Four tabs:
 
 - *Overview* — hours for the period, active days, current streak, open and overdue tasks, hours per day, time by project, most-worked tasks, tasks done in the period (time logged or not), task status breakdown.
 - *Calendar* — a heat calendar of the period. Click a day to see what you worked on and for how long. Weekly, monthly, seasonal and yearly shapes.
 - *Projects* — a status board of projects with progress, hours and task counts.
+- *Forest* — every task finished in the period grows a tree in its project's grove, bigger the more hours went into it. Time on a task not done yet grows a sprout, and pomodoros come up as flowers. Pinned projects come first; finished and stopped ones move to an old forest, a cabin marking the finished. Hover a tree to see its task, click it to open the task, or click a grove's name to open the project. Follows the calendar, direction and theme, and can be turned off in settings.
 
 Every period can be stepped backwards and forwards, so past months and years are reachable rather than everything being pinned to today.
 
@@ -110,6 +111,7 @@ Each logged session also gets a small note of its own in the workspace's TimeEnt
 - **Rename a status** — renames it in settings and in every task and project note
 - **Pomodoro** — on or off, round and break lengths, and whether to resume after a break
 - **What's new** — whether it opens by itself after an update
+- **Forest** — show or hide the forest tab on the dashboard
 
 ## Commands
 
