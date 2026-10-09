@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.5
+
+### New
+- A **+** on each project row and group of the task board adds a task already in that project (and, inside a column, in that column's status). Right-click, or a long press on a phone, for *New task in this project*, *Open project* and *Pin*.
+
+### Fixed
+- A folded column's name lay flat and cut off on some setups ("ncel" for cancel), or ran into the count. It now runs down the bar just under the count.
+- A long task or project title made a file name too long for Android to sync. New notes get names cut to fit; titles themselves stay whole.
+
 ## 1.5.4
 
 ### New
