@@ -1371,89 +1371,229 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 .pm-whatsnew-link { margin-inline-end: auto; font-size: 12.5px; }
 
 /* ===== Forest ===== */
-/* The forest tab: the scene on one side, the summary on the other, and
-   one above the other once the pane gets narrow */
-.pm-forest-box { container-type: inline-size; }
-.pm-forest { display: flex; gap: 16px; align-items: flex-start; }
-.pm-forest-scenebox {
-  flex: 1 1 auto; min-width: 0; border-radius: 12px; overflow: hidden;
-  box-shadow: 0 0 0 1px var(--background-modifier-border);
+/* The forest tab: heading and period, what grew, the forest in a card with
+   its legend, and the groves beside it; one above the other when narrow.
+   Its own soft greens in a light theme; the theme's colours in a dark one. */
+.pm-forest {
+  --pmf-card: #FFFDF8; --pmf-border: #E1E6DB; --pmf-ink: #253D33; --pmf-muted: #7A8479;
+  --pmf-accent: #32654E; --pmf-accent-soft: #EEF2E7; --pmf-accent-line: #CFDCC7;
+  --pmf-warm: #8F7952; --pmf-warm-soft: #FBF6EA; --pmf-seg: #ECEFE6;
+  --pmf-shadow: 0 4px 14px rgba(37, 61, 51, 0.10);
+  container-type: inline-size; color: var(--pmf-ink); padding: 6px 2px 24px;
 }
-.pm-forest-side { flex: 0 0 290px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.pm-forest-side .pm-db-card { margin: 0; }
-@container (max-width: 760px) {
-  .pm-forest { flex-direction: column; align-items: stretch; }
+body.theme-dark .pm-forest {
+  --pmf-card: var(--background-secondary); --pmf-border: var(--background-modifier-border);
+  --pmf-ink: var(--text-normal); --pmf-muted: var(--text-muted);
+  --pmf-accent: #7DBB98; --pmf-accent-soft: rgba(125, 187, 152, 0.14); --pmf-accent-line: rgba(125, 187, 152, 0.35);
+  --pmf-warm: #D2B98E; --pmf-warm-soft: rgba(210, 185, 142, 0.12); --pmf-seg: var(--background-modifier-hover);
+  --pmf-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.pm-forest button { box-shadow: none; font: inherit; }
+/* English words in a right-to-left forest keep their own order */
+.pm-forest[dir="rtl"] :is(div, span, button) { unicode-bidi: plaintext; }
+
+.pm-forest-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.pm-forest-title { font-size: 28px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.2; }
+.pm-forest-subtitle { margin-top: 6px; font-size: 14px; color: var(--pmf-muted); }
+.pm-forest-period { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pm-forest-seg { display: flex; padding: 3px; border-radius: 10px; background: var(--pmf-seg); }
+.pm-forest .pm-forest-seg button { background: transparent; border: none; color: var(--pmf-muted); padding: 6px 14px; border-radius: 8px; height: auto; cursor: pointer; }
+.pm-forest .pm-forest-seg button.is-active { background: var(--pmf-card); color: var(--pmf-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(37, 61, 51, 0.12); }
+.pm-forest-nav { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--pmf-border); border-radius: 10px; background: var(--pmf-card); }
+.pm-forest .pm-forest-nav button { background: transparent; border: none; padding: 4px 6px; height: auto; color: var(--pmf-ink); cursor: pointer; }
+.pm-forest .pm-forest-nav button:disabled { opacity: 0.35; cursor: default; }
+.pm-forest-nav-label { padding: 0 8px; font-size: 14px; font-weight: 500; white-space: nowrap; unicode-bidi: plaintext; }
+.pm-forest .pm-forest-today { border: 1px solid var(--pmf-border); background: var(--pmf-card); color: var(--pmf-ink); border-radius: 10px; padding: 7px 14px; height: auto; cursor: pointer; }
+.pm-forest .pm-forest-today:disabled { opacity: 0.5; cursor: default; }
+
+.pm-forest-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 30px; margin: 22px 0 18px; }
+.pm-forest-stat { display: flex; align-items: baseline; gap: 8px; }
+.pm-forest-stat-icon { align-self: center; display: inline-flex; color: var(--pmf-accent); }
+.pm-forest-stat-icon svg { width: 18px; height: 18px; }
+.pm-forest-stat-value { font-size: 20px; font-weight: 650; }
+.pm-forest-stat-label { font-size: 13px; color: var(--pmf-muted); }
+.pm-forest-stat-note { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--pmf-muted); }
+.pm-forest-stat-note svg { width: 13px; height: 13px; }
+
+.pm-forest-body { display: flex; gap: 20px; align-items: flex-start; }
+.pm-forest-main {
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+  background: var(--pmf-card); border: 1px solid var(--pmf-border); border-radius: 16px;
+}
+.pm-forest-side { flex: 0 0 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+@container (max-width: 900px) {
+  .pm-forest-body { flex-direction: column; align-items: stretch; }
   .pm-forest-side { flex-basis: auto; }
 }
 
+.pm-forest-main-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--pmf-border); }
+.pm-forest-views, .pm-forest-seasons { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pm-forest .pm-forest-views button {
+  display: flex; align-items: center; gap: 7px; background: transparent; border: none; height: auto;
+  padding: 6px 10px; border-radius: 8px; color: var(--pmf-muted); cursor: pointer; font-size: 14px;
+}
+.pm-forest .pm-forest-views button.is-active { color: var(--pmf-ink); font-weight: 600; }
+.pm-forest .pm-forest-views button:disabled { opacity: 0.45; cursor: default; }
+.pm-forest-view-icon { display: inline-flex; }
+.pm-forest-view-icon svg { width: 16px; height: 16px; }
+.pm-forest .pm-forest-views button.is-active .pm-forest-view-icon { color: var(--pmf-accent); }
+.pm-forest-view-count { font-size: 12px; color: var(--pmf-muted); font-weight: 400; }
+.pm-forest-seasons-label { font-size: 12.5px; color: var(--pmf-muted); margin-inline-end: 4px; }
+.pm-forest .pm-forest-seasons button { background: transparent; border: none; height: auto; padding: 5px 11px; border-radius: 8px; font-size: 12.5px; color: var(--pmf-muted); cursor: pointer; }
+.pm-forest .pm-forest-seasons button.is-active { background: var(--pmf-accent-soft); color: var(--pmf-accent); font-weight: 600; }
+
+.pm-forest-scenebox { position: relative; overflow: hidden; }
+.pm-forest-scenebox.is-zoomed { overflow-x: auto; }
 .pm-forest-scene { position: relative; }
+.pm-forest-stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .pm-forest-svg { display: block; }
-.pm-forest-oldland { fill: #000000; opacity: 0.05; }
-body.theme-dark .pm-forest-oldland { opacity: 0.18; }
+.pm-forest-zoom { position: absolute; bottom: 16px; inset-inline-end: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.pm-forest .pm-forest-zoom button {
+  width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--pmf-card); border: 1px solid var(--pmf-border); border-radius: 10px; color: var(--pmf-ink); cursor: pointer;
+  box-shadow: var(--pmf-shadow);
+}
 
 .pm-forest-tree { cursor: pointer; outline: none; }
-.pm-forest-tree:hover, .pm-forest-tree:focus-visible { filter: brightness(1.12) drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)); }
+.pm-forest-tree:hover, .pm-forest-tree:focus-visible { filter: brightness(1.06) drop-shadow(0 2px 4px rgba(37, 61, 51, 0.25)); }
 .pm-forest-tree.is-new { transform-box: fill-box; transform-origin: 50% 100%; animation: pm-forest-grow 0.9s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes pm-forest-grow { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.pm-forest-grove.is-stopped { opacity: 0.55; }
-.pm-forest-grove.is-flash .pm-forest-plot { animation: pm-forest-flash 1.6s ease-out; }
-@keyframes pm-forest-flash { 0%, 60% { stroke-width: 5; stroke-opacity: 1; stroke-dasharray: none; } }
+.pm-forest-ring { fill: none; stroke: var(--pmf-accent); stroke-width: 2.5; }
+.pm-forest-grove.is-stopped { opacity: 0.6; }
 
-/* Names under the groves, and the other words on the scene */
-.pm-forest-label {
-  position: absolute; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center;
-  padding: 3px 10px; border-radius: 12px; font-size: 12px; line-height: 1.35;
-  background: rgba(20, 20, 20, 0.66); color: #ffffff; white-space: nowrap;
+/* Words on the land */
+.pm-forest-caption { position: absolute; top: 24px; inset-inline-start: 26px; pointer-events: none; }
+.pm-forest-caption-title { font-size: 12.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pmf-accent); unicode-bidi: plaintext; }
+.pm-forest-caption-sub { margin-top: 3px; font-size: 12px; color: var(--pmf-muted); }
+.pm-forest-card {
+  position: absolute; transform: translateX(-50%); z-index: 1;
+  padding: 9px 14px; border-radius: 12px; cursor: pointer; white-space: nowrap;
+  background: var(--pmf-card); border: 1px solid var(--pmf-border); box-shadow: var(--pmf-shadow);
 }
-.pm-forest-label.is-stopped, .pm-forest-label.is-idle { background: rgba(20, 20, 20, 0.5); }
-.pm-forest-label.is-flash { animation: pm-forest-pop 1.6s ease-out; }
-@keyframes pm-forest-pop { 0%, 60% { box-shadow: 0 0 0 3px var(--pm-project-color); } }
-.pm-forest-label-head { display: flex; align-items: center; gap: 6px; max-width: 100%; }
-.pm-forest-label-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pm-project-color); }
-.pm-forest-label-pin { display: inline-flex; color: #ffd166; }
-.pm-forest-label-pin svg { width: 12px; height: 12px; }
-.pm-forest-label-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; max-width: 100%; unicode-bidi: plaintext; }
-.pm-forest-label-name.is-link { cursor: pointer; }
-.pm-forest-label-name.is-link:hover, .pm-forest-label-name.is-link:focus-visible { text-decoration: underline; outline: none; }
-.pm-forest-label-meta { opacity: 0.8; font-size: 11px; unicode-bidi: plaintext; }
-.pm-forest-loose-label, .pm-forest-oldhead {
-  position: absolute; inset-inline-start: 12px; padding: 2px 10px; border-radius: 10px;
-  font-size: 11.5px; background: rgba(20, 20, 20, 0.55); color: #ffffff; unicode-bidi: plaintext;
+.pm-forest-card:hover, .pm-forest-card:focus-visible { border-color: var(--pmf-accent-line); outline: none; }
+.pm-forest-card.is-selected { border-color: var(--pmf-accent); box-shadow: 0 0 0 3px var(--pmf-accent-soft), var(--pmf-shadow); }
+.pm-forest-card.is-idle { background: var(--pmf-warm-soft); }
+body:not(.theme-dark) .pm-forest-card.is-idle { background: #FBF7EC; }
+.pm-forest-card.is-idle .pm-forest-card-name { color: var(--pmf-warm); }
+.pm-forest-card.is-stopped { opacity: 0.85; }
+.pm-forest-card.is-flash { animation: pm-forest-pop 1.6s ease-out; }
+@keyframes pm-forest-pop { 0%, 60% { box-shadow: 0 0 0 4px var(--pmf-accent-line), var(--pmf-shadow); } }
+.pm-forest-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pm-forest-card-name { min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
+.pm-forest-card-tag { font-size: 11px; color: var(--pmf-warm); }
+.pm-forest-card-pin { display: inline-flex; color: var(--pmf-muted); }
+.pm-forest-card-pin svg, .pm-forest-grove-pin svg { width: 13px; height: 13px; }
+.pm-forest-card-meta { margin-top: 3px; font-size: 12px; color: var(--pmf-muted); overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
+.pm-forest-chip {
+  position: absolute; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  padding: 4px 10px; border-radius: 8px; font-size: 12px; color: var(--pmf-muted);
+  background: color-mix(in srgb, var(--pmf-card) 80%, transparent); border: 1px solid var(--pmf-border);
 }
-/* English words in a right-to-left forest keep their own order */
-.pm-forest[dir="rtl"] :is(.pm-db-hero-row, .pm-db-hero-sub, .pm-db-hero-label, .pm-forest-chart-title) { unicode-bidi: plaintext; }
-.pm-forest-oldhead-title { font-weight: 650; }
+.pm-forest-corner-box { position: absolute; padding: 10px 12px; border-radius: 14px; cursor: pointer; z-index: 1; }
+.pm-forest-corner-box:hover, .pm-forest-corner-box:focus-visible { background: color-mix(in srgb, var(--pmf-card) 25%, transparent); outline: none; }
+.pm-forest-corner-head { display: flex; align-items: center; gap: 8px; color: var(--pmf-muted); }
+.pm-forest-corner-icon { display: inline-flex; }
+.pm-forest-corner-icon svg { width: 15px; height: 15px; }
+.pm-forest-corner-title { font-size: 14px; font-weight: 500; color: var(--pmf-ink); opacity: 0.8; }
+.pm-forest-corner-count { font-size: 12px; }
+.pm-forest-corner-sub { margin-top: 4px; font-size: 12px; color: var(--pmf-muted); }
+.pm-forest-corner-list {
+  position: absolute; bottom: 8px; inset-inline: 12px; padding: 8px 12px; border-radius: 10px;
+  font-size: 12px; line-height: 1.7; color: var(--pmf-muted); background: color-mix(in srgb, var(--pmf-card) 72%, transparent);
+}
+.pm-forest-corner-list div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .pm-forest-empty {
-  position: absolute; left: 50%; transform: translateX(-50%); max-width: 80%;
-  text-align: center; padding: 12px 18px; border-radius: 12px;
-  background: rgba(20, 20, 20, 0.62); color: #ffffff; font-size: 12.5px;
+  position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); max-width: 80%;
+  text-align: center; padding: 14px 20px; border-radius: 14px; font-size: 13px; color: var(--pmf-muted);
+  background: var(--pmf-card); border: 1px solid var(--pmf-border); box-shadow: var(--pmf-shadow);
 }
-.pm-forest-empty-head { font-weight: 650; font-size: 14px; margin-bottom: 4px; }
-.pm-forest-tip {
-  position: absolute; z-index: 5; pointer-events: none; max-width: 260px;
-  background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
-  border-radius: 8px; padding: 7px 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
-}
-.pm-forest-tip-head { font-size: 12px; font-weight: 650; color: var(--text-normal); margin-bottom: 3px; unicode-bidi: plaintext; }
-.pm-forest-tip-row { font-size: 11px; color: var(--text-muted); line-height: 1.5; unicode-bidi: plaintext; }
+.pm-forest-empty-head { font-weight: 650; font-size: 15px; color: var(--pmf-ink); margin-bottom: 4px; }
 
-/* The side panel */
-.pm-forest-chart-title { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); }
-.pm-forest-groves { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
-.pm-forest-grove-row {
-  display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px;
-  font-size: 12.5px; cursor: pointer;
+/* The card a tree opens */
+.pm-forest-pop {
+  position: absolute; z-index: 4; width: 320px; max-width: calc(100% - 16px); padding: 16px 18px;
+  background: var(--pmf-card); border: 1px solid var(--pmf-border); border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(37, 61, 51, 0.18);
 }
-.pm-forest-grove-row:hover, .pm-forest-grove-row:focus-visible { background: var(--background-modifier-hover); outline: none; }
-.pm-forest-grove-row.is-stopped, .pm-forest-grove-row.is-idle { color: var(--text-muted); }
-.pm-forest-grove-words { flex: 1; min-width: 0; }
-.pm-forest-grove-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
-.pm-forest-grove-meta { color: var(--text-muted); font-size: 11px; unicode-bidi: plaintext; }
-.pm-forest-legend { display: flex; flex-direction: column; gap: 4px; }
-.pm-forest-legend-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+.pm-forest-pop-head { display: flex; align-items: center; gap: 8px; color: var(--pmf-accent); }
+.pm-forest-pop-icon { display: inline-flex; }
+.pm-forest-pop-icon svg { width: 16px; height: 16px; }
+.pm-forest-pop-kind { font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.pm-forest .pm-forest-pop-close { margin-inline-start: auto; background: transparent; border: none; padding: 2px; height: auto; color: var(--pmf-muted); cursor: pointer; }
+.pm-forest-pop-title { margin: 12px 0 2px; font-size: 17px; font-weight: 650; color: var(--pmf-ink); cursor: pointer; unicode-bidi: plaintext; }
+.pm-forest-pop-title:hover, .pm-forest-pop-title:focus-visible { text-decoration: underline; outline: none; }
+.pm-forest-pop-project { font-size: 13px; color: var(--pmf-muted); unicode-bidi: plaintext; }
+.pm-forest-pop-facts { display: flex; gap: 28px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--pmf-border); }
+.pm-forest-pop-label { font-size: 12px; color: var(--pmf-muted); white-space: nowrap; }
+.pm-forest-pop-value { margin-top: 4px; font-size: 16px; font-weight: 600; color: var(--pmf-ink); white-space: nowrap; unicode-bidi: plaintext; }
+.pm-forest-pop-foot { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12.5px; color: var(--pmf-accent); }
+.pm-forest-pop-foot svg { width: 14px; height: 14px; }
+
+/* The legend under the forest */
+.pm-forest-legend { padding: 14px 20px 18px; border-top: 1px solid var(--pmf-border); }
+.pm-forest-legend-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.pm-forest-legend-title { font-size: 13px; font-weight: 600; }
+.pm-forest-legend-note { font-size: 12px; color: var(--pmf-muted); }
+.pm-forest-legend-items { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; margin-top: 12px; }
+.pm-forest-legend-item { display: flex; align-items: center; gap: 10px; }
 .pm-forest-legend-icon { flex: none; }
+.pm-forest-legend-name { font-size: 13px; }
+.pm-forest-legend-sub { font-size: 11.5px; color: var(--pmf-muted); }
+
+/* The groves beside the forest */
+.pm-forest-panel { background: var(--pmf-card); border: 1px solid var(--pmf-border); border-radius: 16px; padding: 18px; }
+.pm-forest-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pm-forest-panel-title { font-size: 17px; font-weight: 650; }
+.pm-forest-panel-sub { margin: 6px 0 12px; font-size: 12.5px; color: var(--pmf-muted); unicode-bidi: plaintext; }
+.pm-forest-panel-kicker { font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pmf-muted); unicode-bidi: plaintext; }
+.pm-forest-panel-empty { padding: 8px 4px; font-size: 12.5px; color: var(--pmf-muted); }
+.pm-forest .pm-forest-icon-btn { background: transparent; border: none; padding: 4px; height: auto; color: var(--pmf-muted); cursor: pointer; }
+.pm-forest .pm-forest-icon-btn.is-on { color: var(--pmf-accent); }
+.pm-forest-groves { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.pm-forest-grove-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; cursor: pointer; }
+.pm-forest-grove-row:hover, .pm-forest-grove-row:focus-visible { background: var(--pmf-accent-soft); outline: none; }
+.pm-forest-grove-row.is-selected { background: var(--pmf-accent-soft); border-color: var(--pmf-accent-line); }
+.pm-forest-grove-words { flex: 1; min-width: 0; }
+.pm-forest-grove-line { display: flex; align-items: center; gap: 8px; }
+.pm-forest-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pm-project-color); }
+.pm-forest-grove-row.is-idle .pm-forest-dot { background: #B5A06C; }
+.pm-forest-grove-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.pm-forest-grove-pin { display: inline-flex; margin-inline-start: auto; color: var(--pmf-muted); }
+.pm-forest-grove-chevron { display: inline-flex; color: var(--pmf-accent); }
+.pm-forest-grove-pin + .pm-forest-grove-chevron { margin-inline-start: 0; }
+.pm-forest-grove-name + .pm-forest-grove-chevron { margin-inline-start: auto; }
+.pm-forest-grove-chevron svg { width: 15px; height: 15px; }
+[dir="rtl"] .pm-forest-grove-chevron svg { transform: scaleX(-1); }
+.pm-forest-grove-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--pmf-muted); }
+.pm-forest-grove-hours { color: var(--pmf-ink); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.pm-forest-grove-row.is-idle .pm-forest-grove-hours { color: var(--pmf-warm); font-weight: 500; }
+.pm-forest-road { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--pmf-border); }
+.pm-forest-road-icon { display: inline-flex; color: var(--pmf-muted); }
+.pm-forest-road-icon svg { width: 16px; height: 16px; }
+.pm-forest-selected-name { margin: 10px 0 3px; font-size: 22px; font-weight: 650; line-height: 1.25; unicode-bidi: plaintext; }
+.pm-forest-selected-about { font-size: 13px; color: var(--pmf-muted); unicode-bidi: plaintext; }
+.pm-forest-selected-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--pmf-border); }
+.pm-forest-selected-value { display: flex; align-items: center; gap: 6px; font-size: 24px; font-weight: 650; white-space: nowrap; }
+.pm-forest-selected-icon { display: inline-flex; color: var(--pmf-warm); }
+.pm-forest-selected-icon svg { width: 18px; height: 18px; }
+.pm-forest-selected-label { font-size: 12px; color: var(--pmf-muted); }
+.pm-forest-latest-head { margin-bottom: 8px; }
+.pm-forest-latest { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; unicode-bidi: plaintext; }
+.pm-forest-latest:hover, .pm-forest-latest:focus-visible { text-decoration: underline; outline: none; }
+.pm-forest-latest svg { width: 15px; height: 15px; color: var(--pmf-accent); flex: none; }
+.pm-forest .pm-forest-open {
+  width: 100%; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; height: auto;
+  padding: 11px; border: none; border-radius: 10px; cursor: pointer;
+  background: var(--pmf-accent); color: #ffffff; font-size: 14px; font-weight: 600;
+}
+body.theme-dark .pm-forest .pm-forest-open { color: #10241a; }
+.pm-forest .pm-forest-open svg { width: 15px; height: 15px; }
+[dir="rtl"] .pm-forest-open svg { transform: scaleX(-1); }
+.pm-forest-resting { display: flex; gap: 10px; padding: 4px 6px; font-size: 12.5px; color: var(--pmf-muted); line-height: 1.5; }
+.pm-forest-resting-icon { display: inline-flex; color: var(--pmf-warm); margin-top: 1px; }
+.pm-forest-resting-icon svg { width: 16px; height: 16px; }
+.pm-forest-resting-title { color: var(--pmf-ink); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pm-forest-tree.is-new, .pm-forest-grove.is-flash .pm-forest-plot, .pm-forest-label.is-flash { animation: none; }
+  .pm-forest-tree.is-new, .pm-forest-card.is-flash { animation: none; }
 }

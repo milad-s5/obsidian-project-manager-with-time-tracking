@@ -49,13 +49,16 @@ test("only tasks finished in the period are trees; open ones worked on are sprou
       task("idle-open", { status: "doing", completed: "" }),
       task("backlog", { status: "backlog", completed: "" }),
     ],
-    { records: [{ iso: "2026-10-02", taskSlug: "open" }, { iso: "2026-09-02", taskSlug: "idle-open" }, { iso: "2026-10-03", taskSlug: "backlog" }] }
+    { records: [{ iso: "2026-10-02", taskSlug: "open", hours: 1 }, { iso: "2026-09-02", taskSlug: "idle-open", hours: 1 }, { iso: "2026-10-03", taskSlug: "backlog", hours: 0.5 }] }
   ));
   const site = forest.groves.find((g) => g.key === "site");
   assert.ok(site);
   assert.deepEqual(site.trees.map((t) => [t.slug, t.kind]), [["in", "young"], ["backlog", "sprout"], ["open", "sprout"]]);
   assert.equal(forest.planted, 1);
   assert.equal(forest.sprouts, 2);
+  // Time logged in the period only
+  assert.equal(site.hours, 1.5);
+  assert.equal(forest.hours, 1.5);
 });
 
 test("finished and cancelled projects go to the old forest; tasks with no project stand apart", () => {
@@ -69,6 +72,33 @@ test("finished and cancelled projects go to the old forest; tasks with no projec
   assert.deepEqual(forest.old.map((g) => [g.key, g.state]).sort(), [["app", "finished"], ["old", "stopped"]]);
   assert.equal(forest.loose?.title, "No project");
   assert.equal(forest.loose?.trees.length, 1);
+});
+
+test("closed projects keep every tree they grew, whatever the period", () => {
+  const forest = buildForest(input([
+    task("a"),
+    task("long-ago", { projectSlug: "app", completed: "2025-03-01", totalHours: 7 }),
+    task("lately", { projectSlug: "app", completed: "2026-10-03" }),
+  ]));
+  const app = forest.old.find((g) => g.key === "app");
+  assert.deepEqual(app?.trees.map((t) => t.slug), ["long-ago", "lately"]);
+  assert.equal(app?.totalHours, 9);
+  assert.equal(app?.latest?.slug, "lately");
+  // Counted as planted only when finished in the period
+  assert.equal(forest.planted, 2);
+});
+
+test("a resting project shows all its trees, even in a period it was not touched", () => {
+  const forest = buildForest(input(
+    [task("x", { completed: "2026-07-01" }), task("y", { completed: "2026-06-12" }), task("z", { projectSlug: "blog", completed: "2026-10-08" })],
+    { projects: [{ slug: "site", title: "Website", status: "active" }, { slug: "blog", title: "Blog", status: "active" }] }
+  ));
+  const site = forest.groves.find((g) => g.key === "site");
+  assert.equal(site?.state, "idle");
+  assert.equal(site?.trees.length, 2);
+  assert.equal(site?.hours, 0);
+  // And a project at work shows only what grew in the period
+  assert.deepEqual(forest.groves.find((g) => g.key === "blog")?.trees.map((t) => t.slug), ["z"]);
 });
 
 test("an open project untouched for three weeks is idle, and waits behind the active ones", () => {
@@ -145,7 +175,7 @@ function bigForest(projects: number, perProject: number) {
 test("groves never overlap, and their trees stay on them", () => {
   for (const width of [360, 700, 1200]) {
     for (const rtl of [false, true]) {
-      const layout = layoutForest(bigForest(12, 25), width, rtl);
+      const layout = layoutForest(bigForest(12, 25), width, { rtl });
       const boxes = layout.groves.map((g) => ({ l: g.cx - g.rx, r: g.cx + g.rx, t: g.cy - g.ry, b: g.labelY + 20 }));
       for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) {
@@ -167,15 +197,15 @@ test("groves never overlap, and their trees stay on them", () => {
   }
 });
 
-test("bushes and grass keep off the groves and their names", () => {
+test("grass and stones keep off the groves and their names", () => {
   const layout = layoutForest(bigForest(9, 6), 900);
-  assert.ok(layout.wild.length > 20, `some scenery (${layout.wild.length})`);
+  assert.ok(layout.wild.length > 10, `some scenery (${layout.wild.length})`);
   for (const d of layout.wild) {
     for (const g of layout.groves) {
       const dx = (d.x - g.cx) / g.rx;
       const dy = (d.y - g.cy) / g.ry;
       assert.ok(dx * dx + dy * dy >= 1, "not on a grove");
-      assert.ok(!(Math.abs(d.x - g.cx) < 80 && d.y > g.labelY && d.y < g.labelY + 36), "not on a name");
+      assert.ok(!(Math.abs(d.x - g.cx) < 80 && d.y > g.labelY && d.y < g.labelY + 44), "not on a name");
     }
   }
 });
@@ -189,16 +219,50 @@ test("a lot of work still draws a light scene", () => {
     assert.ok(g.trees.length <= GROVE_MAX_TREES);
     assert.equal(g.trees.length + g.hidden, g.grove.trees.length, "the rest are counted");
   }
-  assert.ok(layout.oldTop !== null, "finished projects get the old forest");
-  const old = layout.groves.filter((g) => g.grove.state === "finished");
-  assert.ok(old.every((g) => g.cy > (layout.oldTop ?? 0)), "below the old forest line");
+});
+
+test("the old forest has a corner of the active one, and a view of its own", () => {
+  const forest = bigForest(10, 8);
+  for (const rtl of [false, true]) {
+    const active = layoutForest(forest, 1000, { rtl });
+    const c = active.corner;
+    assert.ok(c, "a corner");
+    assert.ok(c.x >= 0 && c.x + c.w <= active.width, "inside the scene");
+    assert.ok(rtl ? c.x < 500 : c.x > 500, "at the far end of the first row");
+    assert.ok(active.groves.every((g) => g.grove.state !== "finished" && g.grove.state !== "stopped"));
+    for (const g of active.groves) {
+      const apart = g.cx + g.rx <= c.x || g.cx - g.rx >= c.x + c.w || g.cy - g.ry >= c.y + c.h;
+      assert.ok(apart, `${g.grove.title} clear of the corner`);
+    }
+  }
+  const old = layoutForest(forest, 1000, { view: "old" });
+  assert.equal(old.corner, null);
+  assert.ok(old.groves.length > 0 && old.groves.every((g) => g.grove.state === "finished"));
+});
+
+test("the road runs between the groves", () => {
+  for (const width of [700, 1000, 1300]) {
+    const layout = layoutForest(bigForest(9, 6), width);
+    const line = layout.road;
+    for (let i = 1; i < line.length; i++) {
+      for (let k = 0; k <= 10; k++) {
+        const x = line[i - 1].x + ((line[i].x - line[i - 1].x) * k) / 10;
+        const y = line[i - 1].y + ((line[i].y - line[i - 1].y) * k) / 10;
+        for (const g of layout.groves) {
+          const dx = (x - g.cx) / g.rx;
+          const dy = (y - g.cy) / g.ry;
+          assert.ok(dx * dx + dy * dy >= 1, `road over ${g.grove.title} at width ${width}`);
+        }
+      }
+    }
+  }
 });
 
 test("the same tasks always grow the same forest, mirrored right to left", () => {
   const a = layoutForest(bigForest(5, 10), 900);
   const b = layoutForest(bigForest(5, 10), 900);
   assert.deepEqual(a, b);
-  const r = layoutForest(bigForest(5, 10), 900, true);
+  const r = layoutForest(bigForest(5, 10), 900, { rtl: true });
   a.groves.forEach((g, i) => assert.equal(Math.round(r.groves[i].cx), Math.round(900 - g.cx)));
 });
 

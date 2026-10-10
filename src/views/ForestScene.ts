@@ -1,456 +1,460 @@
 // ╔══════════════════════════════════════════════════════════════════════╗
 // ║  ForestScene — draws a laid out forest as one SVG                     ║
-// ║  Land, road, groves and trees are SVG; the names under the groves    ║
-// ║  and the tooltip are HTML on top, so they wrap and read either way.  ║
+// ║  Land, road, groves and trees are SVG; the cards under the groves    ║
+// ║  and the other words are HTML on top, so they wrap and read either   ║
+// ║  way. Zooming scales the whole stage.                                ║
 // ╚══════════════════════════════════════════════════════════════════════╝
 
 import { setIcon } from "obsidian";
-import { Decor, ForestLayout, ForestTree, Grove, PlacedGrove, PlacedTree, Season, Species, TreeKind, hashString } from "../utils/Forest";
+import {
+  Decor, ForestLayout, Grove, OldCorner, PlacedGrove, PlacedTree, Season, Species, TreeKind, hashString, seeded,
+} from "../utils/Forest";
 import { projectColor } from "../utils/StatusColors";
 
 export interface SceneOptions {
   season: Season;
   dark: boolean;
+  zoom: number;
   /** Trees planted since the scene was last drawn, which grow in */
   fresh: Set<string>;
-  describeTree: (tree: ForestTree, grove: Grove) => string[];
+  /** The words at the top corner of the land */
+  caption: { title: string; sub: string };
   /** The line under a grove's name */
   describeGrove: (grove: Grove, hidden: number) => string;
-  onTree: (tree: ForestTree) => void;
+  /** The grove whose card is lit */
+  selected: string | null;
+  onTree: (p: PlacedTree, grove: Grove | null) => void;
   onGrove: (grove: Grove) => void;
+  /** The corner with the old forest */
+  corner: { title: string; sub: string; lines: string[]; onOpen: () => void } | null;
+  /** Says what stands by the road; empty when nothing does */
+  looseLabel: string;
   /** Shown over the land when nothing grew in the period */
   empty: string[] | null;
-  /** Says what is by the road; empty when nothing is */
-  looseLabel: string;
 }
 
+export interface SceneHandle {
+  /** Where a point of the forest is on the scene, zoom and all */
+  toScene: (x: number, y: number) => { x: number; y: number };
+  /** Rings a tree as the one picked, or clears the ring */
+  ring: (p: PlacedTree | null) => void;
+}
+
+type Pair = [string, string];
+
 interface Palette {
-  sky: [string, string];
-  hills: [string, string];
-  ground: [string, string];
-  grove: string;
-  idleGrove: string;
-  road: [string, string];
-  round: string[];
-  pine: string[];
-  blossom: string[];
-  idle: string[];
-  /** Grass tufts and bushes on the land */
-  grass: string;
-  bush: string;
+  ground: Pair;
+  patch: string;
+  hill: string;
+  road: [string, string, string];
+  round: Pair[];
+  pine: Pair[];
+  blossom: Pair[];
+  idle: Pair[];
   snow: boolean;
 }
 
-const PALETTES: Record<Season, Palette> = {
+const LIGHT: Record<Season, Palette> = {
   spring: {
-    sky: ["#9fd3f2", "#e6f5fb"], hills: ["#bfe0a8", "#a9d68e"], ground: ["#a5d67f", "#78b85a"],
-    grove: "#8cc96a", idleGrove: "#b3c06c", road: ["#d9c08a", "#e7d4a4"],
-    round: ["#4f9a4a", "#5cab52", "#3f8a46", "#68b35a"], pine: ["#2f7a4a", "#3a8752"],
-    blossom: ["#f2a7c3", "#f6bdd2", "#eb98b8"], idle: ["#d9862b", "#e0a53a", "#c4612a", "#d4742e"],
-    grass: "#5f9e45", bush: "#4f9a4a", snow: false,
+    ground: ["#EEF2E3", "#DCE7CC"], patch: "#E9EDD2", hill: "#D3E0BF", road: ["#E6E1CB", "#F3EFDF", "#FAF8EE"],
+    round: [["#A2C392", "#527D5B"], ["#AEC985", "#6F9F65"], ["#ABC583", "#568653"], ["#86B18E", "#32674F"]],
+    pine: [["#6F9F65", "#32674F"], ["#86B18E", "#32674F"]],
+    blossom: [["#F0CCC3", "#CC9293"]],
+    idle: [["#CDB67B", "#A99463"], ["#D6B887", "#AC9470"], ["#C9AE7C", "#8F7952"]], snow: false,
   },
   summer: {
-    sky: ["#7cc3f0", "#dff1fb"], hills: ["#a8d38a", "#8cc46f"], ground: ["#93c86b", "#5f9f45"],
-    grove: "#7dba5a", idleGrove: "#aab865", road: ["#d6bb80", "#e6d09c"],
-    round: ["#2f7d3b", "#3c8b45", "#2a6e35", "#47944c"], pine: ["#24683c", "#2f7646"],
-    blossom: ["#3c8b45", "#47944c"], idle: ["#d9862b", "#e0a53a", "#c4612a", "#d4742e"],
-    grass: "#4b8a37", bush: "#3c7f3a", snow: false,
+    ground: ["#E8EFDC", "#CFE0BC"], patch: "#E2EACB", hill: "#C6D9AE", road: ["#E3DCC2", "#F1ECDA", "#F9F6EA"],
+    round: [["#8DB878", "#3F6E46"], ["#9CC07F", "#4E7F4A"], ["#7FAF7F", "#2F5F45"], ["#A5C47E", "#5B8A4A"]],
+    pine: [["#5E8F5A", "#28573F"], ["#6F9F65", "#2F5F45"]],
+    blossom: [["#9CC07F", "#4E7F4A"]],
+    idle: [["#CDB67B", "#A99463"], ["#D6B887", "#AC9470"], ["#C9AE7C", "#8F7952"]], snow: false,
   },
   autumn: {
-    sky: ["#a9cbe0", "#eef3f0"], hills: ["#d8cf8e", "#c7bf78"], ground: ["#c9c779", "#9aa552"],
-    grove: "#b9bf66", idleGrove: "#c8b56a", road: ["#cfb27a", "#e0c995"],
-    round: ["#d9862b", "#e0a53a", "#c4612a", "#b8892f", "#cf9b3a", "#7f9a3c", "#5f8f3e"], pine: ["#3b7a4e", "#46855a"],
-    blossom: ["#c4612a", "#d4742e"], idle: ["#a8693a", "#b47c45", "#9a5a30"],
-    grass: "#8a8f3c", bush: "#9c8a3a", snow: false,
+    ground: ["#F1EFDF", "#E2DDBF"], patch: "#EEE7C9", hill: "#DCD5AE", road: ["#E5DCC2", "#F3EDDB", "#FAF7EC"],
+    round: [["#E5BC74", "#B07A3A"], ["#DDA866", "#A2602F"], ["#CDBA70", "#8F7A3A"], ["#AEC985", "#6F9F65"], ["#E0A27E", "#AD5E3E"]],
+    pine: [["#6F9F65", "#32674F"], ["#86B18E", "#32674F"]],
+    blossom: [["#E5A88A", "#B86A50"]],
+    idle: [["#C9A97A", "#8F7952"], ["#BFA27C", "#856B52"]], snow: false,
   },
   winter: {
-    sky: ["#c5d6e3", "#f2f6f9"], hills: ["#e8eef3", "#dbe5ec"], ground: ["#f1f5f8", "#d3dee5"],
-    grove: "#e3ebef", idleGrove: "#dfe5e3", road: ["#cfd6dc", "#e1e6ea"],
-    round: ["#8ea596", "#97ae9f", "#86a08f"], pine: ["#2f6b4a", "#3a7654"],
-    blossom: ["#8ea596", "#97ae9f"], idle: ["#a39a8a", "#9a917f"],
-    grass: "#a9b8bf", bush: "#8ea596", snow: true,
+    ground: ["#F3F5F4", "#DEE6E6"], patch: "#EEF2F0", hill: "#D7E0E0", road: ["#E2E5E0", "#F1F2EE", "#FAFAF7"],
+    round: [["#DCE3DB", "#9FB1A3"], ["#CFD8CF", "#8EA396"]],
+    pine: [["#7E9E86", "#3F6550"], ["#6F9078", "#355A47"]],
+    blossom: [["#DCE3DB", "#9FB1A3"]],
+    idle: [["#D3CBB8", "#A69C86"]], snow: true,
   },
 };
 
-const FLOWER_TINTS = ["#ffe066", "#ffffff", "#ffb3c7", "#c9b8ff"];
+const DARK_LAND: Record<Season, Pick<Palette, "ground" | "patch" | "hill" | "road">> = {
+  spring: { ground: ["#26302A", "#1F2823"], patch: "#2D382F", hill: "#2A352C", road: ["#38392F", "#43433A", "#4C4C43"] },
+  summer: { ground: ["#243028", "#1D2822"], patch: "#2B382D", hill: "#28352A", road: ["#37392F", "#424339", "#4B4C42"] },
+  autumn: { ground: ["#2E2C25", "#26241F"], patch: "#36332A", hill: "#322F27", road: ["#3E3B31", "#48453B", "#514E44"] },
+  winter: { ground: ["#2A2F30", "#232829"], patch: "#323839", hill: "#2E3435", road: ["#3B3E3D", "#454847", "#4F5251"] },
+};
+
 let sceneCount = 0;
 
-export function renderForestScene(host: HTMLElement, layout: ForestLayout, o: SceneOptions): void {
+export function renderForestScene(host: HTMLElement, layout: ForestLayout, o: SceneOptions): SceneHandle {
   host.empty();
   host.addClass("pm-forest-scene");
-  host.style.height = `${layout.height}px`;
-  const pal = PALETTES[o.season];
-  const tone = (c: string) => (o.dark ? shade(c, 0.74) : c);
+  const pal: Palette = o.dark ? { ...LIGHT[o.season], ...DARK_LAND[o.season] } : LIGHT[o.season];
+  const tint = (c: string) => (o.dark ? shade(c, 0.82) : c);
   const id = `pmf${++sceneCount}`;
-  const { width: w, height: h, horizon } = layout;
+  const { width: w, height: h } = layout;
 
-  const svg = host.createSvg("svg", {
-    cls: "pm-forest-svg",
-    attr: { width: w, height: h, viewBox: `0 0 ${w} ${h}`, "aria-hidden": "false", role: "group" },
-  });
+  // The stage is drawn at its own size and scaled for the zoom
+  host.style.height = `${h * o.zoom}px`;
+  host.style.width = "";
+  const stage = host.createDiv({ cls: "pm-forest-stage" });
+  stage.style.width = `${w}px`;
+  stage.style.height = `${h}px`;
+  const shift = Math.max(0, (host.clientWidth - w * o.zoom) / 2);
+  stage.style.transform = `translateX(${shift}px) scale(${o.zoom})`;
+  if (o.zoom > 1) host.style.width = `${w * o.zoom}px`;
+  host.parentElement?.toggleClass("is-zoomed", o.zoom > 1);
+
+  const svg = stage.createSvg("svg", { cls: "pm-forest-svg", attr: { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "group" } });
   const defs = svg.createSvg("defs");
-  gradient(defs, `${id}-sky`, o.dark ? ["#121a31", "#3b3f66"] : pal.sky);
-  gradient(defs, `${id}-ground`, [tone(pal.ground[0]), tone(pal.ground[1])]);
-  // Scenery is drawn once here and placed by reference, which keeps the page light
-  defineDecor(defs, id, pal, tone);
+  linear(defs, `${id}-ground`, pal.ground, true);
+  radial(defs, `${id}-patch`, pal.patch);
+  radial(defs, `${id}-hill`, pal.hill);
+  const gradients = new Map<string, string>();
+  const fillOf = (pair: Pair) => {
+    const key = pair.join();
+    let ref = gradients.get(key);
+    if (!ref) {
+      ref = `${id}-t${gradients.size}`;
+      linear(defs, ref, [tint(pair[0]), tint(pair[1])], false);
+      gradients.set(key, ref);
+    }
+    return `url(#${ref})`;
+  };
+  defineDecor(defs, id, o.dark);
   const placeDecor = (parent: SVGElement, d: Decor) =>
     parent.createSvg("use", { attr: { href: `#${id}-${d.kind}`, transform: `translate(${n(d.x)} ${n(d.y)}) scale(${n(d.size)})` } });
 
-  // ── Sky ──
-  svg.createSvg("rect", { attr: { width: w, height: horizon + 24, fill: `url(#${id}-sky)` } });
-  const sky = seededPoints(hashString("sky"), 46);
-  if (o.dark) {
-    for (const [px, py, r] of sky) {
-      svg.createSvg("circle", { attr: { cx: n(px * w), cy: n(py * (horizon - 20)), r: n(0.6 + r * 1.1), fill: "#ffffff", opacity: n(0.35 + r * 0.5) } });
-    }
-    svg.createSvg("circle", { attr: { cx: n(w * 0.86), cy: 44, r: 17, fill: "#f4f1d6" } });
-    svg.createSvg("circle", { attr: { cx: n(w * 0.86 + 7), cy: 39, r: 15, fill: "#252c4d" } });
-  } else {
-    svg.createSvg("circle", { attr: { cx: n(w * 0.88), cy: 46, r: 38, fill: "#fff3b0", opacity: 0.3 } });
-    svg.createSvg("circle", { attr: { cx: n(w * 0.88), cy: 46, r: 24, fill: "#fff3b0" } });
-    for (const [cx, cy, s] of [[0.16, 44, 1], [0.52, 70, 0.8]]) {
-      const g = svg.createSvg("g", { attr: { fill: "#ffffff", opacity: 0.9 } });
-      g.createSvg("ellipse", { attr: { cx: n(w * cx), cy, rx: 40 * s, ry: 12 * s } });
-      g.createSvg("ellipse", { attr: { cx: n(w * cx + 26 * s), cy: cy - 9 * s, rx: 26 * s, ry: 13 * s } });
-    }
+  // ── Land: soft rises, the road, a lighter patch under each grove ──
+  svg.createSvg("rect", { attr: { width: w, height: h, fill: `url(#${id}-ground)` } });
+  const hills = seeded(hashString(`hills${w}`));
+  for (let y = 60; y < h; y += 170) {
+    svg.createSvg("ellipse", {
+      attr: { cx: n(hills() * w), cy: n(y + hills() * 80), rx: n(w * (0.35 + hills() * 0.3)), ry: n(60 + hills() * 50), fill: `url(#${id}-hill)` },
+    });
   }
-  svg.createSvg("path", {
-    attr: { d: `M0 ${horizon + 6} Q${n(w * 0.14)} ${horizon - 46} ${n(w * 0.3)} ${horizon - 4} T${n(w * 0.62)} ${horizon - 10} T${w} ${horizon - 6} V${horizon + 30} H0Z`, fill: tone(pal.hills[0]) },
-  });
-  svg.createSvg("path", {
-    attr: { d: `M0 ${horizon + 14} Q${n(w * 0.22)} ${horizon - 24} ${n(w * 0.42)} ${horizon + 8} T${n(w * 0.82)} ${horizon} T${w} ${horizon + 8} V${horizon + 40} H0Z`, fill: tone(pal.hills[1]) },
-  });
-
-  // ── Land ──
-  svg.createSvg("rect", { attr: { y: horizon + 8, width: w, height: h - horizon - 8, fill: `url(#${id}-ground)` } });
-  if (layout.oldTop !== null) {
-    svg.createSvg("rect", { cls: "pm-forest-oldland", attr: { y: n(layout.oldTop), width: w, height: n(h - layout.oldTop) } });
-    svg.createSvg("path", { attr: { d: `M0 ${n(layout.oldTop)} H${w}`, stroke: o.dark ? "#ffffff" : "#000000", "stroke-opacity": 0.12, "stroke-dasharray": "2 6" } });
+  for (const pg of layout.groves) {
+    svg.createSvg("ellipse", { attr: { cx: n(pg.cx), cy: n(pg.cy + 2), rx: n(pg.rx * 1.25), ry: n(pg.ry * 1.45), fill: `url(#${id}-patch)` } });
   }
-
-  // ── Road, and a lane up to the hills ──
+  if (layout.corner) {
+    const c = layout.corner;
+    svg.createSvg("ellipse", { attr: { cx: n(c.x + c.w / 2), cy: n(c.y + 110), rx: n(c.w * 0.6), ry: 70, fill: `url(#${id}-patch)` } });
+  }
   const roadD = smoothPath(layout.road);
-  const mid = layout.road[Math.round(layout.road.length * 0.55)];
-  const lane = `M${n(mid.x - 13)} ${n(mid.y)} L${n(mid.x + 13)} ${n(mid.y)} L${n(mid.x + 34)} ${horizon + 6} L${n(mid.x + 28)} ${horizon + 6} Z`;
-  svg.createSvg("path", { attr: { d: lane, fill: tone(pal.road[0]) } });
-  svg.createSvg("path", { attr: { d: roadD, stroke: tone(pal.road[0]), "stroke-width": 26, fill: "none", "stroke-linecap": "round" } });
-  svg.createSvg("path", { attr: { d: roadD, stroke: tone(pal.road[1]), "stroke-width": 12, fill: "none", "stroke-linecap": "round" } });
+  const roadLine = (stroke: string, width: number, opacity: number) =>
+    svg.createSvg("path", { attr: { d: roadD, stroke, "stroke-width": width, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round", opacity } });
+  roadLine(pal.road[0], 44, 0.7);
+  roadLine(pal.road[1], 32, 1);
+  roadLine(pal.road[2], 12, 0.8);
 
-  // ── Grass, bushes and stones on the open land ──
   const wild = svg.createSvg("g", { cls: "pm-forest-wild" });
   for (const d of layout.wild) placeDecor(wild, d);
 
-  // ── Tooltip, shared by every tree ──
-  const tip = host.createDiv({ cls: "pm-forest-tip pm-hidden" });
-  const showTip = (p: PlacedTree, grove: Grove) => {
-    tip.empty();
-    o.describeTree(p.tree, grove).forEach((line, i) => tip.createDiv({ cls: i ? "pm-forest-tip-row" : "pm-forest-tip-head", text: line }));
-    tip.removeClass("pm-hidden");
-    const left = Math.min(Math.max(8, p.x + 16), Math.max(8, w - tip.offsetWidth - 8));
-    tip.style.left = `${left}px`;
-    tip.style.top = `${Math.max(4, p.y - 46 * p.scale - tip.offsetHeight)}px`;
-  };
-  const hideTip = () => tip.addClass("pm-hidden");
-
-  // One set of listeners for every tree rather than six on each
-  const placed = new Map<Element, { p: PlacedTree; grove: Grove }>();
+  // ── Trees, one set of listeners for all of them ──
+  const placed = new Map<Element, { p: PlacedTree; grove: Grove | null }>();
   const treeAt = (target: EventTarget | null) => {
     const g = target instanceof Element ? target.closest(".pm-forest-tree") : null;
     return g ? placed.get(g) ?? null : null;
   };
-  const enter = (e: Event) => { const t = treeAt(e.target); if (t) showTip(t.p, t.grove); };
-  const leave = (e: MouseEvent | FocusEvent) => { if (treeAt(e.target) !== treeAt(e.relatedTarget)) hideTip(); };
-  svg.addEventListener("mouseover", enter);
-  svg.addEventListener("focusin", enter);
-  svg.addEventListener("mouseout", leave);
-  svg.addEventListener("focusout", leave);
-  svg.addEventListener("click", (e) => { const t = treeAt(e.target); if (t) o.onTree(t.p.tree); });
+  svg.addEventListener("click", (e) => { const t = treeAt(e.target); if (t) o.onTree(t.p, t.grove); });
   svg.addEventListener("keydown", (e) => {
     const t = treeAt(e.target);
-    if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); o.onTree(t.p.tree); }
+    if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); o.onTree(t.p, t.grove); }
   });
-
-  const drawPlaced = (parent: SVGElement, p: PlacedTree, grove: Grove, colours: string[]) => {
+  const coloursFor = (species: Species, idle: boolean): Pair[] =>
+    idle && species !== "pine" ? pal.idle : species === "pine" ? pal.pine : species === "blossom" ? pal.blossom : pal.round;
+  const drawPlaced = (parent: SVGElement, p: PlacedTree, grove: Grove | null, idle: boolean) => {
     const g = parent.createSvg("g", {
       cls: o.fresh.has(p.tree.path) ? ["pm-forest-tree", "is-new"] : "pm-forest-tree",
       attr: { tabindex: 0, role: "button" },
     });
-    drawTree(g, p.x, p.y, p.scale, p.tree.kind, p.tree.species, pick(colours, p.tree.slug), tone, pal.snow);
-    // Read out by screen readers; a <title> would also pop the browser's own tooltip
-    g.createSvg("desc").textContent = o.describeTree(p.tree, grove).join(" · ");
+    const pair = pick(coloursFor(p.tree.species, idle), p.tree.slug);
+    drawTree(g, p.x, p.y, p.scale, p.tree.kind, p.tree.species, fillOf(pair), p.tree.slug, o.dark, pal.snow);
+    g.createSvg("desc").textContent = `${p.tree.title}${grove && grove.state !== "loose" ? `, ${grove.title}` : ""}`;
     placed.set(g, { p, grove });
   };
-  const coloursFor = (species: Species, idle: boolean) =>
-    idle && species !== "pine" ? pal.idle : species === "pine" ? pal.pine : species === "blossom" ? pal.blossom : pal.round;
 
-  // ── Tasks with no project, along the road ──
+  // ── Tasks with no project, by the road ──
   if (layout.loose.length) {
     const g = svg.createSvg("g", { cls: "pm-forest-loose" });
-    const grove = { key: "~loose" } as Grove;
-    for (const p of layout.loose) drawPlaced(g, p, grove, coloursFor(p.tree.species, false));
+    for (const p of layout.loose) drawPlaced(g, p, null, false);
   }
-  if (o.looseLabel) {
-    host.createDiv({ cls: "pm-forest-loose-label", text: o.looseLabel }).style.top = `${horizon + 4}px`;
-  }
+
+  // ── The old forest's corner ──
+  if (layout.corner && o.corner) drawCorner(svg, stage, layout.corner, o.corner, (g, p) => drawPlaced(g, p, null, false), o.dark);
 
   // ── Groves ──
-  for (const pg of layout.groves) drawGrove(svg, host, pg, o, pal, tone, coloursFor, drawPlaced, placeDecor);
-
-  if (layout.oldTop !== null) {
-    const head = host.createDiv({ cls: "pm-forest-oldhead" });
-    head.style.top = `${layout.oldTop + 10}px`;
-    head.createSpan({ cls: "pm-forest-oldhead-title", text: "Old forest" });
-    head.appendText(" · finished and stopped projects");
+  for (const pg of layout.groves) {
+    const idle = pg.grove.state === "idle";
+    const g = svg.createSvg("g", { cls: ["pm-forest-grove", `is-${pg.grove.state}`], attr: { "data-key": pg.grove.key } });
+    for (const d of pg.decor) placeDecor(g, d);
+    const cabinY = pg.cabin?.y ?? Infinity;
+    let cabinDrawn = false;
+    for (const p of pg.trees) {
+      if (!cabinDrawn && p.y > cabinY && pg.cabin) { drawCabin(g, pg.cabin.x, pg.cabin.y, pg.scale, o.dark); cabinDrawn = true; }
+      drawPlaced(g, p, pg.grove, idle);
+    }
+    if (!cabinDrawn && pg.cabin) drawCabin(g, pg.cabin.x, pg.cabin.y, pg.scale, o.dark);
+    groveCard(stage, pg, o, w);
   }
 
+  // ── Words on the land ──
+  const caption = stage.createDiv({ cls: "pm-forest-caption" });
+  caption.createDiv({ cls: "pm-forest-caption-title", text: o.caption.title });
+  caption.createDiv({ cls: "pm-forest-caption-sub", text: o.caption.sub });
+  if (o.looseLabel && layout.looseAt) {
+    const chip = stage.createDiv({ cls: "pm-forest-chip", text: o.looseLabel });
+    chip.style.top = `${Math.min(Math.max(layout.looseAt.y, 70), h - 40)}px`;
+    const half = chip.offsetWidth / 2;
+    chip.style.left = `${half ? Math.min(Math.max(layout.looseAt.x, half + 8), w - half - 8) : layout.looseAt.x}px`;
+  }
   if (o.empty) {
-    const box = host.createDiv({ cls: "pm-forest-empty" });
-    box.style.top = `${horizon + 96}px`;
+    const box = stage.createDiv({ cls: "pm-forest-empty" });
     o.empty.forEach((line, i) => box.createDiv({ cls: i ? "" : "pm-forest-empty-head", text: line }));
   }
-}
 
-function drawGrove(
-  svg: SVGElement,
-  host: HTMLElement,
-  pg: PlacedGrove,
-  o: SceneOptions,
-  pal: Palette,
-  tone: (c: string) => string,
-  coloursFor: (species: Species, idle: boolean) => string[],
-  drawPlaced: (parent: SVGElement, p: PlacedTree, grove: Grove, colours: string[]) => void,
-  placeDecor: (parent: SVGElement, d: Decor) => void
-): void {
-  const { grove, cx, cy, rx, ry } = pg;
-  const idle = grove.state === "idle";
-  const key = grove.key;
-  const g = svg.createSvg("g", { cls: ["pm-forest-grove", `is-${grove.state}`], attr: { "data-key": key } });
-  const colour = grove.state === "meadow" ? "#9aa0a6" : projectColor(key);
-  g.createSvg("ellipse", {
-    cls: "pm-forest-plot",
-    attr: {
-      cx: n(cx), cy: n(cy), rx: n(rx), ry: n(ry),
-      fill: tone(idle && !pal.snow ? pal.idleGrove : pal.grove),
-      stroke: colour, "stroke-opacity": 0.6, "stroke-width": 2, "stroke-dasharray": "6 5",
+  // The ring round a picked tree, under the tree itself
+  let ring: SVGElement | null = null;
+  return {
+    toScene: (x, y) => ({ x: shift + x * o.zoom, y: y * o.zoom }),
+    ring: (p) => {
+      ring?.remove();
+      ring = null;
+      if (!p) return;
+      const g = [...placed.entries()].find(([, v]) => v.p === p)?.[0];
+      if (!g?.parentElement) return;
+      const r = 11 * p.scale;
+      ring = g.parentElement.createSvg("ellipse", { cls: "pm-forest-ring", attr: { cx: n(p.x), cy: n(p.y), rx: n(r * 1.9), ry: n(r * 0.62) } });
+      g.parentElement.insertBefore(ring, g);
     },
-  });
-
-  for (const d of pg.decor) placeDecor(g, d);
-  for (const f of pg.flowers) {
-    g.createSvg("circle", { attr: { cx: n(f.x), cy: n(f.y), r: n(2.2 * pg.scale), fill: tone(FLOWER_TINTS[f.tint]) } });
-  }
-  if (idle) {
-    const tufts = seededPoints(hashString(key) ^ 77, 26);
-    for (const [a, d] of tufts) {
-      const x = cx + Math.cos(a * Math.PI * 2) * Math.sqrt(d) * 0.9 * rx;
-      const y = cy + Math.sin(a * Math.PI * 2) * Math.sqrt(d) * 0.9 * ry;
-      g.createSvg("path", { attr: { d: `M${n(x)} ${n(y)} l-2 -7 M${n(x)} ${n(y)} l1 -9 M${n(x)} ${n(y)} l3 -6`, stroke: tone("#8a9a3c"), "stroke-width": 1.2 } });
-      g.createSvg("circle", { attr: { cx: n(x + 6), cy: n(y + 2), r: 1.8, fill: tone("#d9862b") } });
-    }
-  }
-
-  // Trees and the cabin, back to front
-  const cabinY = pg.cabin?.y ?? Infinity;
-  let cabinDrawn = false;
-  for (const p of pg.trees) {
-    if (!cabinDrawn && p.y > cabinY && pg.cabin) { drawCabin(g, pg.cabin.x, pg.cabin.y, pg.scale, tone); cabinDrawn = true; }
-    drawPlaced(g, p, grove, coloursFor(p.tree.species, idle));
-  }
-  if (!cabinDrawn && pg.cabin) drawCabin(g, pg.cabin.x, pg.cabin.y, pg.scale, tone);
-
-  // The name under the grove
-  const label = host.createDiv({ cls: `pm-forest-label is-${grove.state}`, attr: { "data-key": key } });
-  label.style.left = `${cx}px`;
-  label.style.top = `${pg.labelY}px`;
-  label.style.maxWidth = `${pg.labelW}px`;
-  label.setCssProps({ "--pm-project-color": colour });
-  const head = label.createDiv({ cls: "pm-forest-label-head" });
-  head.createSpan({ cls: "pm-forest-label-dot" });
-  if (grove.pinned) setIcon(head.createSpan({ cls: "pm-forest-label-pin" }), "pin");
-  const name = head.createSpan({ cls: "pm-forest-label-name", text: grove.title });
-  label.createDiv({ cls: "pm-forest-label-meta", text: o.describeGrove(grove, pg.hidden) });
-  // Kept inside the scene when the grove stands near its edge
-  const half = label.offsetWidth / 2;
-  const width = Number(svg.getAttribute("width"));
-  if (half && width) label.style.left = `${Math.min(Math.max(cx, half + 6), width - half - 6)}px`;
-  if (grove.state === "meadow") {
-    label.setAttr("aria-label", grove.members.join(", "));
-  } else {
-    name.addClass("is-link");
-    // The whole name shows on hover when it is cut short
-    name.setAttrs({ role: "link", tabindex: "0", "aria-label": `Open ${grove.title}` });
-    name.addEventListener("click", () => o.onGrove(grove));
-    name.addEventListener("keydown", (e) => { if (e.key === "Enter") o.onGrove(grove); });
-  }
+  };
 }
 
-/** Scrolls a grove into view and makes it blink */
-export function flashGrove(host: HTMLElement, key: string): void {
-  const label = host.querySelector<HTMLElement>(`.pm-forest-label[data-key="${CSS.escape(key)}"]`);
-  const grove = host.querySelector<SVGElement>(`.pm-forest-grove[data-key="${CSS.escape(key)}"]`);
-  if (!label || !grove) return;
-  label.scrollIntoView({ block: "center", behavior: "smooth" });
-  for (const el of [label, grove]) {
-    el.removeClass("is-flash");
-    // Restarts the animation when the same grove is picked twice
-    void el.getBoundingClientRect();
-    el.addClass("is-flash");
-    window.setTimeout(() => el.removeClass("is-flash"), 1700);
+/** The white card under a grove: its name, a pin, what grew */
+function groveCard(stage: HTMLElement, pg: PlacedGrove, o: SceneOptions, w: number): void {
+  const { grove } = pg;
+  const card = stage.createDiv({ cls: `pm-forest-card is-${grove.state}`, attr: { "data-key": grove.key } });
+  if (o.selected === grove.key) card.addClass("is-selected");
+  card.setCssProps({ "--pm-project-color": grove.state === "meadow" ? "#9aa0a6" : projectColor(grove.key) });
+  card.style.top = `${pg.labelY}px`;
+  card.style.maxWidth = `${pg.labelW}px`;
+  const head = card.createDiv({ cls: "pm-forest-card-head" });
+  head.createSpan({ cls: "pm-forest-card-name", text: grove.title });
+  const tag = { idle: "Idle", finished: "Finished", stopped: "Stopped" }[grove.state as string];
+  if (tag) head.createSpan({ cls: "pm-forest-card-tag", text: tag });
+  if (grove.pinned) setIcon(head.createSpan({ cls: "pm-forest-card-pin" }), "pin");
+  card.createDiv({ cls: "pm-forest-card-meta", text: o.describeGrove(grove, pg.hidden) });
+  card.setAttrs({ role: "button", tabindex: "0", "aria-label": grove.state === "meadow" ? grove.members.join(", ") : grove.title });
+  card.addEventListener("click", () => o.onGrove(grove));
+  card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); o.onGrove(grove); } });
+  // Centred under the grove, but kept inside the scene
+  const half = card.offsetWidth / 2;
+  card.style.left = `${half ? Math.min(Math.max(pg.cx, half + 8), w - half - 8) : pg.cx}px`;
+}
+
+function drawCorner(
+  svg: SVGElement, stage: HTMLElement, c: OldCorner,
+  words: { title: string; sub: string; lines: string[]; onOpen: () => void },
+  drawPlaced: (g: SVGElement, p: PlacedTree) => void, dark: boolean
+): void {
+  const g = svg.createSvg("g", { cls: "pm-forest-corner" });
+  const cabinY = c.cabin?.y ?? Infinity;
+  let cabinDrawn = false;
+  for (const p of c.trees) {
+    if (!cabinDrawn && p.y > cabinY && c.cabin) { drawCabin(g, c.cabin.x, c.cabin.y, 0.7, dark); cabinDrawn = true; }
+    drawPlaced(g, p);
   }
+  if (!cabinDrawn && c.cabin) drawCabin(g, c.cabin.x, c.cabin.y, 0.7, dark);
+
+  const box = stage.createDiv({ cls: "pm-forest-corner-box", attr: { role: "button", tabindex: "0", "aria-label": "Show the old forest" } });
+  box.style.left = `${c.x}px`;
+  box.style.top = `${c.y}px`;
+  box.style.width = `${c.w}px`;
+  box.style.height = `${c.h}px`;
+  const head = box.createDiv({ cls: "pm-forest-corner-head" });
+  setIcon(head.createSpan({ cls: "pm-forest-corner-icon" }), "archive");
+  head.createSpan({ cls: "pm-forest-corner-title", text: words.title });
+  head.createSpan({ cls: "pm-forest-corner-count", text: words.sub });
+  box.createDiv({ cls: "pm-forest-corner-sub", text: "Finished & stopped · cabin = finished" });
+  if (words.lines.length) {
+    const list = box.createDiv({ cls: "pm-forest-corner-list" });
+    for (const line of words.lines) list.createDiv({ text: line });
+  }
+  box.addEventListener("click", words.onOpen);
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); words.onOpen(); } });
+}
+
+/** Scrolls a grove into view and makes its card blink */
+export function flashGrove(host: HTMLElement, key: string): void {
+  const card = host.querySelector<HTMLElement>(`.pm-forest-card[data-key="${CSS.escape(key)}"]`);
+  if (!card) return;
+  card.scrollIntoView({ block: "center", behavior: "smooth" });
+  card.removeClass("is-flash");
+  // Restarts the animation when the same grove is picked twice
+  void card.getBoundingClientRect();
+  card.addClass("is-flash");
+  window.setTimeout(() => card.removeClass("is-flash"), 1700);
 }
 
 /** A single tree on its own, for the legend */
-export function drawLegendTree(parent: HTMLElement, kind: TreeKind | "cabin" | "idle", season: Season, dark: boolean): void {
-  const pal = PALETTES[season];
-  const tone = (c: string) => (dark ? shade(c, 0.74) : c);
-  const svg = parent.createSvg("svg", { cls: "pm-forest-legend-icon", attr: { viewBox: "-22 -50 44 54", width: 26, height: 26 } });
-  if (kind === "cabin") drawCabin(svg, 0, 0, 0.9, tone);
-  else if (kind === "idle") {
-    for (const x of [-12, -2, 9]) {
-      svg.createSvg("path", { attr: { d: `M${x} 0 l-4 -16 M${x} 0 l2 -22 M${x} 0 l6 -14`, stroke: tone("#8a9a3c"), "stroke-width": 2.4, fill: "none" } });
-    }
-    svg.createSvg("circle", { attr: { cx: 15, cy: -2, r: 3.2, fill: tone("#d9862b") } });
+export function drawLegendTree(parent: HTMLElement, kind: TreeKind | "flower", season: Season, dark: boolean): void {
+  const pal = LIGHT[season];
+  const svg = parent.createSvg("svg", { cls: "pm-forest-legend-icon", attr: { viewBox: "-24 -58 48 62", width: 30, height: 30 } });
+  const defs = svg.createSvg("defs");
+  const ref = `pmfl${++sceneCount}`;
+  if (kind === "flower") {
+    defineDecor(defs, ref, dark);
+    svg.createSvg("use", { attr: { href: `#${ref}-flower`, transform: "scale(3.6)" } });
+    return;
   }
-  else drawTree(svg, 0, 0, kind === "old" ? 1 : kind === "young" ? 1.5 : kind === "sapling" ? 2 : 2.4, kind, "round", pal.round[1], tone, pal.snow);
-}
-
-export function drawLegendFlower(parent: HTMLElement): void {
-  const svg = parent.createSvg("svg", { cls: "pm-forest-legend-icon", attr: { viewBox: "-6 -6 12 12", width: 26, height: 26 } });
-  svg.createSvg("circle", { attr: { r: 3, fill: FLOWER_TINTS[0] } });
-  svg.createSvg("circle", { attr: { r: 1.3, fill: "#e0a800" } });
+  const at = kind === "old" ? 3 : kind === "young" ? 1 : 2;
+  const pair = pal.round[Math.min(at, pal.round.length - 1)];
+  linear(defs, `${ref}-f`, dark ? [shade(pair[0], 0.82), shade(pair[1], 0.82)] : pair, false);
+  const scale = kind === "old" ? 1 : kind === "young" ? 1.4 : kind === "sapling" ? 2.1 : 3.4;
+  drawTree(svg, 0, 0, scale, kind, "round", `url(#${ref}-f)`, "legend", dark, false);
 }
 
 // ── Drawing ─────────────────────────────────────────────────────────────
 
 function drawTree(
   g: SVGElement, x: number, y: number, s: number,
-  kind: TreeKind, species: Species, colour: string,
-  tone: (c: string) => string, snow: boolean
+  kind: TreeKind, species: Species, fill: string, slug: string, dark: boolean, snow: boolean
 ): void {
-  const c = tone(colour);
-  const lit = tone(lighten(colour, 0.28));
-  const trunk = tone("#7a5233");
-  const shadow = (rx: number, ry: number) => g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y), rx: n(rx * s), ry: n(ry * s), fill: "#000000", opacity: 0.16 } });
-  const circle = (cx: number, cy: number, r: number, fill: string) => g.createSvg("circle", { attr: { cx: n(x + cx * s), cy: n(y + cy * s), r: n(r * s), fill } });
-
-  if (kind === "sapling") {
-    shadow(8, 2.8);
-    if (species === "pine") {
-      g.createSvg("rect", { attr: { x: n(x - 1.5 * s), y: n(y - 6 * s), width: n(3 * s), height: n(6 * s), fill: tone("#6b4a2b") } });
-      g.createSvg("path", { attr: { d: `M${n(x - 9 * s)} ${n(y - 5 * s)} L${n(x)} ${n(y - 26 * s)} L${n(x + 9 * s)} ${n(y - 5 * s)} Z`, fill: c } });
-      g.createSvg("path", { attr: { d: `M${n(x - 5 * s)} ${n(y - 15 * s)} L${n(x)} ${n(y - 26 * s)} L${n(x + 5 * s)} ${n(y - 15 * s)} Z`, fill: snow ? "#f4f8fb" : lit } });
-      return;
-    }
-    g.createSvg("rect", { attr: { x: n(x - 1.4 * s), y: n(y - 11 * s), width: n(2.8 * s), height: n(11 * s), fill: trunk } });
-    circle(0, -15, 7, c);
-    circle(-2.5, -17.5, 3.2, lit);
-    if (snow) g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y - 21 * s), rx: n(5 * s), ry: n(1.9 * s), fill: "#f4f8fb" } });
-    return;
-  }
+  const P = (dx: number, dy: number) => `${n(x + dx * s)} ${n(y + dy * s)}`;
+  const shadow = (rx: number) =>
+    g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y), rx: n(rx * s), ry: n(rx * 0.3 * s), fill: dark ? "#000000" : "#7A8479", opacity: dark ? 0.3 : 0.2 } });
+  const lobe = (dx: number, dy: number, r: number) =>
+    g.createSvg("circle", { attr: { cx: n(x + dx * s), cy: n(y + dy * s), r: n(r * s), fill } });
+  const wood = dark ? "#6E5A3E" : "#896E4A";
+  const stroke = (d: string, width: number) =>
+    g.createSvg("path", { attr: { d, stroke: wood, "stroke-width": n(width * s), "stroke-linecap": "round", fill: "none" } });
 
   if (kind === "sprout") {
-    const leaf = tone("#7bd389");
-    const size = 1.15;
-    shadow(6 * size, 2.5 * size);
-    g.createSvg("path", { attr: { d: `M${n(x)} ${n(y)} V${n(y - 9 * s * size)}`, stroke: tone("#6b4a2b"), "stroke-width": n(1.6 * s) } });
-    g.createSvg("ellipse", { attr: { cx: n(x - 3.5 * s * size), cy: n(y - 8 * s * size), rx: n(4 * s * size), ry: n(2.2 * s * size), fill: leaf, transform: `rotate(-25 ${n(x - 3.5 * s * size)} ${n(y - 8 * s * size)})` } });
-    g.createSvg("ellipse", { attr: { cx: n(x + 3.5 * s * size), cy: n(y - 10 * s * size), rx: n(4 * s * size), ry: n(2.2 * s * size), fill: leaf, transform: `rotate(25 ${n(x + 3.5 * s * size)} ${n(y - 10 * s * size)})` } });
+    shadow(5);
+    stroke(`M${P(0, 0)} L${P(0, -7)}`, 1.1);
+    g.createSvg("path", { attr: { d: `M${P(0, -7)} C${P(-2, -11)} ${P(-7, -11)} ${P(-8, -8)} C${P(-6, -6)} ${P(-2, -6)} ${P(0, -7)} Z`, fill: dark ? "#6F8A55" : "#7A9659" } });
+    g.createSvg("path", { attr: { d: `M${P(0, -7)} C${P(2, -11)} ${P(7, -11)} ${P(8, -8)} C${P(6, -6)} ${P(2, -6)} ${P(0, -7)} Z`, fill: dark ? "#879C6E" : "#94AA78" } });
     return;
   }
 
   if (species === "pine") {
     const tiers = kind === "old" ? 3 : 2;
-    const size = kind === "old" ? 1 : 0.75;
-    shadow(14 * size, 4 * size);
-    g.createSvg("rect", { attr: { x: n(x - 2.5 * s * size), y: n(y - 9 * s * size), width: n(5 * s * size), height: n(9 * s * size), fill: tone("#6b4a2b") } });
+    const k = kind === "old" ? 1 : kind === "young" ? 0.78 : 0.5;
+    shadow(14 * k);
+    g.createSvg("rect", { attr: { x: n(x - 1.6 * s * k), y: n(y - 8 * s * k), width: n(3.2 * s * k), height: n(8 * s * k), fill: wood } });
     for (let i = 0; i < tiers; i++) {
-      const base = y - (8 + i * 11) * s * size;
-      const half = (16 - i * 4) * s * size;
-      const top = base - 18 * s * size;
-      g.createSvg("path", { attr: { d: `M${n(x - half)} ${n(base)} L${n(x)} ${n(top)} L${n(x + half)} ${n(base)} Z`, fill: i === tiers - 1 ? lit : c } });
+      const base = -(6 + i * 13) * k;
+      const half = (17 - i * 4) * k;
+      const top = base - (22 - i * 2) * k;
+      g.createSvg("path", { attr: { d: `M${P(-half, base)} Q${P(0, base - 5 * k)} ${P(half, base)} L${P(0, top)} Z`, fill } });
       if (snow && i === tiers - 1) {
-        g.createSvg("path", { attr: { d: `M${n(x - half * 0.4)} ${n(top + 7 * s * size)} L${n(x)} ${n(top)} L${n(x + half * 0.4)} ${n(top + 7 * s * size)} Z`, fill: "#f4f8fb" } });
+        g.createSvg("path", { attr: { d: `M${P(-half * 0.38, top + 8 * k)} L${P(0, top)} L${P(half * 0.38, top + 8 * k)} Z`, fill: "#F7FAFA" } });
       }
     }
     return;
   }
 
-  if (kind === "young") {
-    shadow(11, 3.5);
-    g.createSvg("rect", { attr: { x: n(x - 2 * s), y: n(y - 14 * s), width: n(4 * s), height: n(14 * s), fill: trunk } });
-    circle(0, -21, 10, c);
-    circle(-3.5, -24, 4.5, lit);
-    if (snow) g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y - 29 * s), rx: n(7 * s), ry: n(2.6 * s), fill: "#f4f8fb" } });
+  if (kind === "sapling") {
+    shadow(7);
+    stroke(`M${P(0, 0)} L${P(0, -9)}`, 1.4);
+    g.createSvg("path", { attr: { d: `M${P(0, -24)} C${P(7, -18)} ${P(8, -10)} ${P(0, -7)} C${P(-8, -10)} ${P(-7, -18)} ${P(0, -24)} Z`, fill } });
+    stroke(`M${P(0, -9)} L${P(-3, -13)} M${P(0, -11)} L${P(3, -15)}`, 0.9);
+    if (snow) g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y - 21 * s), rx: n(3 * s), ry: n(1.4 * s), fill: "#F7FAFA" } });
     return;
   }
 
-  shadow(17, 5);
-  g.createSvg("rect", { attr: { x: n(x - 3 * s), y: n(y - 22 * s), width: n(6 * s), height: n(22 * s), fill: trunk } });
-  circle(-11, -27, 12, c);
-  circle(11, -27, 12, c);
-  circle(0, -36, 17, c);
-  circle(-6, -42, 7.5, lit);
-  if (snow) g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y - 51 * s), rx: n(11 * s), ry: n(3.4 * s), fill: "#f4f8fb" } });
+  // Round trees, and blossom: a cluster of lobes, each shaded on its own
+  const lobes: [number, number, number][] = kind === "old"
+    ? [[-11, -28, 12], [11, -29, 12], [-6, -40, 12], [7, -42, 12], [0, -24, 12]]
+    : [[-7, -19, 8.5], [7, -20, 8.5], [0, -28, 9.5], [0, -16, 8]];
+  shadow(kind === "old" ? 17 : 11);
+  const trunk = kind === "old" ? 20 : 13;
+  for (const [dx, dy, r] of lobes) lobe(dx, dy, r);
+  // Trunk and branches over the lobes, as the design has them
+  stroke(`M${P(0, 0)} L${P(0, -trunk)}`, kind === "old" ? 3 : 2.2);
+  stroke(`M${P(0, -trunk * 0.55)} L${P(-trunk * 0.4, -trunk * 0.95)} M${P(0, -trunk * 0.7)} L${P(trunk * 0.38, -trunk * 1.1)}`, kind === "old" ? 1.6 : 1.2);
+  if (species === "blossom") {
+    const r = seeded(hashString(slug));
+    for (let i = 0; i < (kind === "old" ? 6 : 4); i++) {
+      const [dx, dy, lr] = lobes[i % lobes.length];
+      g.createSvg("circle", { attr: { cx: n(x + (dx + (r() - 0.5) * lr) * s), cy: n(y + (dy + (r() - 0.5) * lr) * s), r: n(1.2 * s), fill: "#FFFDF8", opacity: 0.9 } });
+    }
+  }
+  if (snow) {
+    const [dx, dy, r] = lobes[kind === "old" ? 3 : 2];
+    g.createSvg("ellipse", { attr: { cx: n(x + dx * s), cy: n(y + (dy - r * 0.7) * s), rx: n(r * 0.7 * s), ry: n(r * 0.28 * s), fill: "#F7FAFA" } });
+  }
 }
 
-/** The bush, tuft and stone every piece of scenery is a copy of */
-function defineDecor(defs: SVGElement, id: string, pal: Palette, tone: (c: string) => string): void {
+function drawCabin(g: SVGElement, x: number, y: number, s: number, dark: boolean): void {
+  const P = (dx: number, dy: number) => `${n(x + dx * s)} ${n(y + dy * s)}`;
+  g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y), rx: n(26 * s), ry: n(6 * s), fill: dark ? "#000000" : "#7A8479", opacity: 0.2 } });
+  g.createSvg("rect", { attr: { x: n(x - 17 * s), y: n(y - 24 * s), width: n(34 * s), height: n(24 * s), fill: dark ? "#A88E66" : "#D9B989" } });
+  g.createSvg("path", {
+    attr: {
+      d: `M${P(-23, -20)} L${P(0, -38)} L${P(23, -20)}`, stroke: dark ? "#6E5A3E" : "#856B52",
+      "stroke-width": n(6 * s), "stroke-linejoin": "round", "stroke-linecap": "round", fill: "none",
+    },
+  });
+}
+
+/** The tuft, stone and flower the scenery is made of, placed by reference */
+function defineDecor(defs: SVGElement, id: string, dark: boolean): void {
   const tuft = defs.createSvg("g", { attr: { id: `${id}-tuft` } });
   tuft.createSvg("path", {
-    attr: { d: "M0 0 l-2.5 -7 M0 0 l0.8 -9 M0 0 l3.2 -6", stroke: tone(pal.grass), "stroke-width": 1.4, "stroke-linecap": "round", fill: "none" },
+    attr: {
+      d: "M0 0 q-1 -5 -4 -8 M0 0 q0 -6 1 -10 M0 0 q1 -4 4 -7", stroke: dark ? "#6B7663" : "#A3B092",
+      "stroke-width": 1.1, "stroke-linecap": "round", fill: "none", opacity: 0.75,
+    },
   });
-  const bush = defs.createSvg("g", { attr: { id: `${id}-bush` } });
-  bush.createSvg("ellipse", { attr: { rx: 9, ry: 2.4, fill: "#000000", opacity: 0.12 } });
-  for (const [cx, cy, r] of [[-4.5, -3.5, 4.5], [4.5, -3.5, 4.5], [0, -6.5, 5.5]]) {
-    bush.createSvg("circle", { attr: { cx, cy, r, fill: tone(pal.bush) } });
-  }
-  bush.createSvg("circle", { attr: { cx: -1.5, cy: -8.5, r: 2, fill: tone(lighten(pal.bush, 0.3)) } });
   const stone = defs.createSvg("g", { attr: { id: `${id}-stone` } });
-  stone.createSvg("ellipse", { attr: { cy: -2, rx: 5.5, ry: 3.4, fill: tone("#9b9a8e") } });
-  stone.createSvg("ellipse", { attr: { cx: -1.5, cy: -3.4, rx: 2.4, ry: 1.3, fill: tone("#c3c2b6") } });
+  stone.createSvg("ellipse", { attr: { cy: -2, rx: 5.5, ry: 3, fill: dark ? "#4B5248" : "#C5CCB3" } });
+  const flower = defs.createSvg("g", { attr: { id: `${id}-flower` } });
+  flower.createSvg("path", { attr: { d: "M0 0 V-8", stroke: dark ? "#5F7550" : "#7A9659", "stroke-width": 1.2, "stroke-linecap": "round" } });
+  flower.createSvg("circle", { attr: { cy: -9.5, r: 2.8, fill: dark ? "#C9AE85" : "#F6D6A3" } });
+  flower.createSvg("circle", { attr: { cy: -9.5, r: 1.1, fill: "#C59958" } });
 }
 
-function drawCabin(g: SVGElement, x: number, y: number, s: number, tone: (c: string) => string): void {
-  const p = (dx: number, dy: number) => `${n(x + dx * s)} ${n(y + dy * s)}`;
-  g.createSvg("ellipse", { attr: { cx: n(x), cy: n(y), rx: n(24 * s), ry: n(6 * s), fill: "#000000", opacity: 0.18 } });
-  g.createSvg("rect", { attr: { x: n(x - 18 * s), y: n(y - 20 * s), width: n(36 * s), height: n(20 * s), fill: tone("#c9a27a") } });
-  g.createSvg("path", { attr: { d: `M${p(-22, -19)} L${p(0, -36)} L${p(22, -19)} Z`, fill: tone("#9c4a3a") } });
-  g.createSvg("rect", { attr: { x: n(x - 4 * s), y: n(y - 12 * s), width: n(8 * s), height: n(12 * s), fill: tone("#6b3f26") } });
-  g.createSvg("rect", { attr: { x: n(x + 8 * s), y: n(y - 15 * s), width: n(6 * s), height: n(6 * s), fill: "#ffe9a8" } });
-  g.createSvg("path", { attr: { d: `M${p(14, -30)} V${n(y - 46 * s)}`, stroke: tone("#555555"), "stroke-width": n(1.4 * s) } });
-  g.createSvg("path", { attr: { d: `M${p(14, -46)} L${p(26, -42)} L${p(14, -38)} Z`, fill: "#7bd389" } });
-}
-
-function gradient(defs: SVGElement, id: string, [top, bottom]: [string, string] | string[]): void {
-  const lg = defs.createSvg("linearGradient", { attr: { id, x1: 0, y1: 0, x2: 0, y2: 1 } });
+function linear(defs: SVGElement, id: string, [top, bottom]: Pair | string[], vertical: boolean): void {
+  const lg = defs.createSvg("linearGradient", {
+    attr: vertical ? { id, x1: 0, y1: 0, x2: 0, y2: 1 } : { id, x1: 0.2, y1: 0, x2: 0.75, y2: 1 },
+  });
   lg.createSvg("stop", { attr: { offset: 0, "stop-color": top } });
   lg.createSvg("stop", { attr: { offset: 1, "stop-color": bottom } });
 }
 
+/** Solid in the middle, fading out to nothing at the rim */
+function radial(defs: SVGElement, id: string, colour: string): void {
+  const rg = defs.createSvg("radialGradient", { attr: { id } });
+  rg.createSvg("stop", { attr: { offset: 0.55, "stop-color": colour, "stop-opacity": 1 } });
+  rg.createSvg("stop", { attr: { offset: 1, "stop-color": colour, "stop-opacity": 0 } });
+}
+
+/** A smooth line through the points (Catmull-Rom as cubic Béziers) */
 function smoothPath(points: { x: number; y: number }[]): string {
+  if (points.length < 2) return "";
   let d = `M${n(points[0].x)} ${n(points[0].y)}`;
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const p = points[i];
-    d += ` Q${n(prev.x)} ${n(prev.y)} ${n((prev.x + p.x) / 2)} ${n((prev.y + p.y) / 2)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    d += ` C${n(c1.x)} ${n(c1.y)} ${n(c2.x)} ${n(c2.y)} ${n(p2.x)} ${n(p2.y)}`;
   }
-  const last = points[points.length - 1];
-  return `${d} L${n(last.x)} ${n(last.y)}`;
+  return d;
 }
 
-/** [x, y, size] triples in [0, 1), the same every time */
-function seededPoints(seed: number, count: number): number[][] {
-  let a = seed | 0;
-  const next = () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  return Array.from({ length: count }, () => [next(), next(), next()]);
-}
-
-function pick(list: string[], slug: string): string {
+function pick<T>(list: T[], slug: string): T {
   return list[hashString(slug) % list.length];
 }
 
@@ -458,19 +462,7 @@ function n(v: number): number {
   return Math.round(v * 10) / 10;
 }
 
-function channels(hex: string): number[] {
-  const v = parseInt(hex.slice(1), 16);
-  return [v >> 16, (v >> 8) & 255, v & 255];
-}
-
-function toHex(c: number[]): string {
-  return `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
-}
-
 function shade(hex: string, f: number): string {
-  return toHex(channels(hex).map((v) => v * f));
-}
-
-function lighten(hex: string, f: number): string {
-  return toHex(channels(hex).map((v) => v + (255 - v) * f));
+  const v = parseInt(hex.slice(1), 16);
+  return `#${[v >> 16, (v >> 8) & 255, v & 255].map((c) => Math.max(0, Math.min(255, Math.round(c * f))).toString(16).padStart(2, "0")).join("")}`;
 }
