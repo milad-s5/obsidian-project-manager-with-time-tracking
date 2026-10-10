@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
 ### Changed
-- **The forest has a new look**: a soft landscape with a winding road, trees shaded leaf by leaf, and a white card under each grove. Its own period buttons, what grew in the period above it, and the groves beside it.
+- **The forest has a new look**: a soft landscape with a winding road, trees shaded leaf by leaf, and a white card under each grove. Its own period buttons (week, month, season, year, all time), what grew in the period above it, and the groves beside it.
 - Click a tree for its card: task, project, time and the day it was finished. Click a grove to see it beside the forest, with its latest tree and *Open project*.
 - Groves at rest for three weeks turn warm and keep all their trees; finished and stopped projects wait in a corner, and have an *Old forest* of their own.
 - Pick a season by hand, and zoom in and out.
