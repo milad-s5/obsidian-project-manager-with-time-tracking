@@ -20,12 +20,12 @@ import {
 import { addDays, daysBetween, rangeDays, todayISO } from "../utils/Jalali";
 import { captureFocus, restoreFocus } from "../utils/FocusUtils";
 import { listProjectOptions } from "../utils/WorkspacePaths";
-import { DashboardContext } from "../core/Extensions";
+import { DashboardContext, PeriodRange } from "../core/Extensions";
 
 export const PROJECT_DASHBOARD_VIEW_TYPE = "project-manager-project-dashboard";
 
 type TabId = "overview" | "calendar" | "projects";
-type RangeId = "week" | "month" | "season" | "year" | "all";
+type RangeId = PeriodRange;
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -194,7 +194,9 @@ export class ProjectDashboardView extends ItemView {
       await this.plugin.setCurrentWorkspace(ws);
     });
 
-    const rangeSelect = context.createEl("select", { cls: "pm-filter-select" });
+    // A tab with period controls of its own needs neither of these
+    const ownsPeriod = !!this.plugin.ext.dashboardTabs.find((t) => t.id === this.tab)?.ownsPeriod;
+    const rangeSelect = context.createEl("select", { cls: `pm-filter-select${ownsPeriod ? " pm-hidden" : ""}` });
     RANGES.forEach((r) => {
       const opt = rangeSelect.createEl("option", { value: r.id, text: r.label });
       if (r.id === this.range) opt.selected = true;
@@ -205,7 +207,7 @@ export class ProjectDashboardView extends ItemView {
     });
 
     // Period navigation — only where a period means anything
-    if (this.tab !== "projects") this.renderPeriodNav(context);
+    if (this.tab !== "projects" && !ownsPeriod) this.renderPeriodNav(context);
 
     // Project name, status and priority filters only narrow the projects tab
     if (this.tab === "projects") {
@@ -345,6 +347,22 @@ export class ProjectDashboardView extends ItemView {
       periodLabel: b.label,
       refresh: () => void this.render(),
       tooltip: this.tooltip,
+      period: {
+        range: this.range,
+        setRange: (range) => {
+          if (range === this.range) return;
+          this.range = range;
+          this.scrollTop = 0;
+          void this.render();
+        },
+        step: (dir) => { if (this.range !== "all") this.shiftAnchor(dir); },
+        today: () => {
+          this.anchor = todayISO();
+          this.selectedDay = null;
+          void this.render();
+        },
+        atToday: this.range === "all" || (b.from <= todayISO() && todayISO() <= b.to),
+      },
     };
   }
 
