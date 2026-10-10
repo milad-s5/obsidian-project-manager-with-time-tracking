@@ -114,7 +114,7 @@ function renderForestTab(plugin: ProjectManagerPlugin, root: HTMLElement, ctx: D
   heading.createDiv({ cls: "pm-forest-subtitle", text: "A living forest of completed tasks and the projects you nurture." });
   const period = top.createDiv({ cls: "pm-forest-period" });
   const seg = period.createDiv({ cls: "pm-forest-seg" });
-  const RANGES: [PeriodRange, string][] = [["week", "Week"], ["month", "Month"], ["year", "Year"], ["all", "All time"]];
+  const RANGES: [PeriodRange, string][] = [["week", "Week"], ["month", "Month"], ["season", "Season"], ["year", "Year"], ["all", "All time"]];
   for (const [id, label] of RANGES) {
     const b = seg.createEl("button", { text: label, cls: id === range ? "is-active" : "" });
     b.setAttr("aria-pressed", String(id === range));
