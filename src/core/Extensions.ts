@@ -83,11 +83,28 @@ export interface DashboardContext {
   refresh: () => void;
   /** The shared tooltip, so a feature's chart behaves like the built-in ones */
   tooltip: unknown;
+  /** Which period is on screen, and a way to change it */
+  period: PeriodControl;
+}
+
+export type PeriodRange = "week" | "month" | "season" | "year" | "all";
+
+export interface PeriodControl {
+  range: PeriodRange;
+  setRange: (range: PeriodRange) => void;
+  /** One period back or forward; not for "all" */
+  step: (dir: -1 | 1) => void;
+  /** Back to the period holding today */
+  today: () => void;
+  /** The period on screen holds today */
+  atToday: boolean;
 }
 
 export interface DashboardTab {
   id: string;
   label: () => string;
+  /** The tab shows its own period controls, so the toolbar leaves its out */
+  ownsPeriod?: boolean;
   render(root: HTMLElement, ctx: DashboardContext): void | Promise<void>;
 }
 
