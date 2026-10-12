@@ -103,14 +103,12 @@ export function renderForestScene(host: HTMLElement, layout: ForestLayout, o: Sc
   const { width: w, height: h } = layout;
 
   // The stage is drawn at its own size and scaled for the zoom
-  host.style.height = `${h * o.zoom}px`;
-  host.style.width = "";
+  host.setCssStyles({ height: `${h * o.zoom}px`, width: "" });
   const stage = host.createDiv({ cls: "pm-forest-stage" });
-  stage.style.width = `${w}px`;
-  stage.style.height = `${h}px`;
+  stage.setCssStyles({ width: `${w}px`, height: `${h}px` });
   const shift = Math.max(0, (host.clientWidth - w * o.zoom) / 2);
-  stage.style.transform = `translateX(${shift}px) scale(${o.zoom})`;
-  if (o.zoom > 1) host.style.width = `${w * o.zoom}px`;
+  stage.setCssStyles({ transform: `translateX(${shift}px) scale(${o.zoom})` });
+  if (o.zoom > 1) host.setCssStyles({ width: `${w * o.zoom}px` });
   host.parentElement?.toggleClass("is-zoomed", o.zoom > 1);
 
   const svg = stage.createSvg("svg", { cls: "pm-forest-svg", attr: { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "group" } });
@@ -212,9 +210,9 @@ export function renderForestScene(host: HTMLElement, layout: ForestLayout, o: Sc
   caption.createDiv({ cls: "pm-forest-caption-sub", text: o.caption.sub });
   if (o.looseLabel && layout.looseAt) {
     const chip = stage.createDiv({ cls: "pm-forest-chip", text: o.looseLabel });
-    chip.style.top = `${Math.min(Math.max(layout.looseAt.y, 70), h - 40)}px`;
+    chip.setCssStyles({ top: `${Math.min(Math.max(layout.looseAt.y, 70), h - 40)}px` });
     const half = chip.offsetWidth / 2;
-    chip.style.left = `${half ? Math.min(Math.max(layout.looseAt.x, half + 8), w - half - 8) : layout.looseAt.x}px`;
+    chip.setCssStyles({ left: `${half ? Math.min(Math.max(layout.looseAt.x, half + 8), w - half - 8) : layout.looseAt.x}px` });
   }
   if (o.empty) {
     const box = stage.createDiv({ cls: "pm-forest-empty" });
@@ -244,8 +242,7 @@ function groveCard(stage: HTMLElement, pg: PlacedGrove, o: SceneOptions, w: numb
   const card = stage.createDiv({ cls: `pm-forest-card is-${grove.state}`, attr: { "data-key": grove.key } });
   if (o.selected === grove.key) card.addClass("is-selected");
   card.setCssProps({ "--pm-project-color": grove.state === "meadow" ? "#9aa0a6" : projectColor(grove.key) });
-  card.style.top = `${pg.labelY}px`;
-  card.style.maxWidth = `${pg.labelW}px`;
+  card.setCssStyles({ top: `${pg.labelY}px`, maxWidth: `${pg.labelW}px` });
   const head = card.createDiv({ cls: "pm-forest-card-head" });
   head.createSpan({ cls: "pm-forest-card-name", text: grove.title });
   const tag = { idle: "Idle", finished: "Finished", stopped: "Stopped" }[grove.state as string];
@@ -257,7 +254,7 @@ function groveCard(stage: HTMLElement, pg: PlacedGrove, o: SceneOptions, w: numb
   card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); o.onGrove(grove); } });
   // Centred under the grove, but kept inside the scene
   const half = card.offsetWidth / 2;
-  card.style.left = `${half ? Math.min(Math.max(pg.cx, half + 8), w - half - 8) : pg.cx}px`;
+  card.setCssStyles({ left: `${half ? Math.min(Math.max(pg.cx, half + 8), w - half - 8) : pg.cx}px` });
 }
 
 function drawCorner(
@@ -275,10 +272,7 @@ function drawCorner(
   if (!cabinDrawn && c.cabin) drawCabin(g, c.cabin.x, c.cabin.y, 0.7, dark);
 
   const box = stage.createDiv({ cls: "pm-forest-corner-box", attr: { role: "button", tabindex: "0", "aria-label": "Show the old forest" } });
-  box.style.left = `${c.x}px`;
-  box.style.top = `${c.y}px`;
-  box.style.width = `${c.w}px`;
-  box.style.height = `${c.h}px`;
+  box.setCssStyles({ left: `${c.x}px`, top: `${c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
   const head = box.createDiv({ cls: "pm-forest-corner-head" });
   setIcon(head.createSpan({ cls: "pm-forest-corner-icon" }), "archive");
   head.createSpan({ cls: "pm-forest-corner-title", text: words.title });
