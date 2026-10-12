@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.1
+
+### Fixed
+- The forest set its sizes straight on the page's style, which Obsidian's plugin review does not allow. It now goes through Obsidian's own style helper; nothing changes on screen.
+
 ## 1.7.0
 
 ### Changed
