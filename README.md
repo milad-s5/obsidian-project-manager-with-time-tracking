@@ -43,6 +43,10 @@ Every period can be stepped backwards and forwards, so past months and years are
 
 ![The projects tab](./images/project-dashboard.png)
 
+The forest turns a period's work into a landscape you can read at a glance: a grove per project, a tree per finished task, the bigger the tree the more hours it took. Sprouts are the work still in progress, flowers the pomodoros, and a grove gone warm is a project that has gone quiet. It is drawn from the notes you already have, and nothing is written back.
+
+![The forest tab: a grove per project, a tree per finished task, the old forest in its corner and the groves listed beside it](./images/forest.png)
+
 **Filters and focus mode.** Narrow either board down by project — type part of a name or pick one from the list — by priority, or on the Kanban board by task title too. A Focus button on both boards drops everything but the *active* column; toggle it on either board and the other follows, since it is one shared switch rather than two.
 
 **Group by project.** The Kanban's *By project* button groups the cards by project: a row per project across the columns, or each project's tasks kept together inside every column, as chosen in settings. Groups fold, and stay folded. Pin a project to keep it at the top. Tasks with no project come next, ready to be given one, and the other projects are ordered by recent work, priority, unfinished tasks or name. Drag the edge of the project names to fit long names on one line.
