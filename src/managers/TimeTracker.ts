@@ -5,7 +5,7 @@ import { isoToDate } from "../utils/Jalali";
 import { TaskManager } from "./TaskManager";
 import { isBacklogStatus } from "../utils/StatusColors";
 import { shortenName } from "../utils/FrontmatterUtils";
-import { isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
+import { archiveTimeEntriesFolder, isArchivedPath, isUnderAnyFolder, taskFolders } from "../utils/WorkspacePaths";
 import type { TimeLogged } from "../core/Extensions";
 
 export interface StopResult {
@@ -153,7 +153,7 @@ export class TimeTracker {
       // The entry goes first because it is the record that counts: if it
       // cannot be written, nothing has been logged and the timer can come back
       // exactly as it was.
-      entryFile = await this.writeTimeEntry(ws, taskSlug, hours, start, end);
+      entryFile = await this.writeTimeEntry(ws, taskFile, taskSlug, hours, start, end);
     } catch (err) {
       if (!this.activeTimer) this.activeTimer = t;
       throw err;
@@ -309,26 +309,28 @@ export class TimeTracker {
     // keeps the day when the vault is later opened a few timezones away.
     const start = isoToDate(date);
     const end = new Date(start.getTime() + hours * 3600000);
-    const entryFile = await this.writeTimeEntry(ws, taskFile.basename, hours, start, end);
+    const entryFile = await this.writeTimeEntry(ws, taskFile, taskFile.basename, hours, start, end);
     await this.taskManager.updateTaskHours(this.app, taskFile, hours, start, end);
     this.logged({ ws, taskFile, taskSlug: taskFile.basename, hours, start, end, entryFile, source: "manual" });
   }
 
   private async writeTimeEntry(
     ws: Workspace,
+    taskFile: TFile | null,
     taskSlug: string,
     hours: number,
     startTime: Date,
     endTime: Date
   ): Promise<TFile> {
+    const folder = await this.entryFolderFor(ws, taskFile);
     const stamp = toISOFileStamp(endTime);
     // A task named before names were kept short still gets a short entry name
     const name = shortenName(taskSlug);
-    let path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${name}_${stamp}.md`);
+    let path = normalizePath(`${folder}/time_entry_${name}_${stamp}.md`);
 
     let counter = 1;
     while (this.app.vault.getAbstractFileByPath(path)) {
-      path = normalizePath(`${ws.timeEntriesFolder}/time_entry_${name}_${stamp}_${counter}.md`);
+      path = normalizePath(`${folder}/time_entry_${name}_${stamp}_${counter}.md`);
       counter++;
     }
 
@@ -342,6 +344,18 @@ created: "${todayString()}"
 ---
 `;
     return this.app.vault.create(path, content);
+  }
+
+  /**
+   * Time logged on an archived task goes into the archive with it. Archiving
+   * only moves entries when the task moves, so one written to the active
+   * folder afterwards would stay there.
+   */
+  private async entryFolderFor(ws: Workspace, taskFile: TFile | null): Promise<string> {
+    if (!taskFile || !isArchivedPath(ws, taskFile.path)) return normalizePath(ws.timeEntriesFolder);
+    const folder = archiveTimeEntriesFolder(ws);
+    if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+    return folder;
   }
 }
 
