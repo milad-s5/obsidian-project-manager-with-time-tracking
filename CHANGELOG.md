@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.3
+
+### Changed
+- The forest's cards, words and borders now follow your theme in light mode too, like the other tabs; only its greens and the warm tone of resting groves are its own. Switching themes redraws it straight away.
+
 ## 1.7.2
 
 ### Fixed
