@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.2
+
+### Fixed
+- Time logged on a done task, by hand or with the timer, now goes into the archive with the task. It used to land in the active time entries folder and stay there. Entries logged before this update are not moved.
+
 ## 1.7.1
 
 ### Fixed
