@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.4
+
+### Fixed
+- In the forest, a grove standing alone in the last row was drawn on the road, its trees on the path and its card over the trees along the road. The road now passes beside it.
+
 ## 1.7.3
 
 ### Changed
