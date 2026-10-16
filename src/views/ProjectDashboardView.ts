@@ -110,6 +110,8 @@ export class ProjectDashboardView extends ItemView {
     this.registerEvent(this.app.vault.on("create", () => this.scheduleRender()));
     this.registerEvent(this.app.vault.on("delete", () => this.scheduleRender()));
     this.registerEvent(this.app.vault.on("rename", () => this.scheduleRender()));
+    // The forest picks its land colours for the theme as it draws
+    this.registerEvent(this.app.workspace.on("css-change", () => this.scheduleRender()));
   }
 
   async onClose(): Promise<void> {

@@ -1373,19 +1373,19 @@ body.theme-dark .pm-db-calcell[data-heat="5"], body.theme-dark .pm-db-caldot[dat
 /* ===== Forest ===== */
 /* The forest tab: heading and period, what grew, the forest in a card with
    its legend, and the groves beside it; one above the other when narrow.
-   Its own soft greens in a light theme; the theme's colours in a dark one. */
+   Cards, words and borders follow the theme like the other tabs; only the
+   greens and the warm tone of resting groves are the forest's own. */
 .pm-forest {
-  --pmf-card: #FFFDF8; --pmf-border: #E1E6DB; --pmf-ink: #253D33; --pmf-muted: #7A8479;
-  --pmf-accent: #32654E; --pmf-accent-soft: #EEF2E7; --pmf-accent-line: #CFDCC7;
-  --pmf-warm: #8F7952; --pmf-warm-soft: #FBF6EA; --pmf-seg: #ECEFE6;
-  --pmf-shadow: 0 4px 14px rgba(37, 61, 51, 0.10);
+  --pmf-card: var(--background-secondary); --pmf-border: var(--background-modifier-border);
+  --pmf-ink: var(--text-normal); --pmf-muted: var(--text-muted); --pmf-seg: var(--background-modifier-hover);
+  --pmf-accent: #32654E; --pmf-accent-soft: rgba(50, 101, 78, 0.10); --pmf-accent-line: rgba(50, 101, 78, 0.30);
+  --pmf-warm: #8F7952; --pmf-warm-soft: rgba(143, 121, 82, 0.10);
+  --pmf-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   container-type: inline-size; color: var(--pmf-ink); padding: 6px 2px 24px;
 }
 body.theme-dark .pm-forest {
-  --pmf-card: var(--background-secondary); --pmf-border: var(--background-modifier-border);
-  --pmf-ink: var(--text-normal); --pmf-muted: var(--text-muted);
   --pmf-accent: #7DBB98; --pmf-accent-soft: rgba(125, 187, 152, 0.14); --pmf-accent-line: rgba(125, 187, 152, 0.35);
-  --pmf-warm: #D2B98E; --pmf-warm-soft: rgba(210, 185, 142, 0.12); --pmf-seg: var(--background-modifier-hover);
+  --pmf-warm: #D2B98E; --pmf-warm-soft: rgba(210, 185, 142, 0.12);
   --pmf-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 .pm-forest button { box-shadow: none; font: inherit; }
@@ -1398,7 +1398,7 @@ body.theme-dark .pm-forest {
 .pm-forest-period { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .pm-forest-seg { display: flex; padding: 3px; border-radius: 10px; background: var(--pmf-seg); }
 .pm-forest .pm-forest-seg button { background: transparent; border: none; color: var(--pmf-muted); padding: 6px 14px; border-radius: 8px; height: auto; cursor: pointer; }
-.pm-forest .pm-forest-seg button.is-active { background: var(--pmf-card); color: var(--pmf-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(37, 61, 51, 0.12); }
+.pm-forest .pm-forest-seg button.is-active { background: var(--pmf-card); color: var(--pmf-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 .pm-forest-nav { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--pmf-border); border-radius: 10px; background: var(--pmf-card); }
 .pm-forest .pm-forest-nav button { background: transparent; border: none; padding: 4px 6px; height: auto; color: var(--pmf-ink); cursor: pointer; }
 .pm-forest .pm-forest-nav button:disabled { opacity: 0.35; cursor: default; }
@@ -1473,7 +1473,6 @@ body.theme-dark .pm-forest {
 .pm-forest-card:hover, .pm-forest-card:focus-visible { border-color: var(--pmf-accent-line); outline: none; }
 .pm-forest-card.is-selected { border-color: var(--pmf-accent); box-shadow: 0 0 0 3px var(--pmf-accent-soft), var(--pmf-shadow); }
 .pm-forest-card.is-idle { background: var(--pmf-warm-soft); }
-body:not(.theme-dark) .pm-forest-card.is-idle { background: #FBF7EC; }
 .pm-forest-card.is-idle .pm-forest-card-name { color: var(--pmf-warm); }
 .pm-forest-card.is-stopped { opacity: 0.85; }
 .pm-forest-card.is-flash { animation: pm-forest-pop 1.6s ease-out; }
@@ -1513,7 +1512,7 @@ body:not(.theme-dark) .pm-forest-card.is-idle { background: #FBF7EC; }
 .pm-forest-pop {
   position: absolute; z-index: 4; width: 320px; max-width: calc(100% - 16px); padding: 16px 18px;
   background: var(--pmf-card); border: 1px solid var(--pmf-border); border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(37, 61, 51, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 .pm-forest-pop-head { display: flex; align-items: center; gap: 8px; color: var(--pmf-accent); }
 .pm-forest-pop-icon { display: inline-flex; }
