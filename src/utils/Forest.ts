@@ -399,6 +399,9 @@ export function layoutForest(forest: Forest, width: number, opts: { rtl?: boolea
   const groves: PlacedGrove[] = [];
   let corner: OldCorner | null = null;
   const rows: { top: number; bottom: number; edges: number[] }[] = [];
+  const labelW = Math.max(150, slotW - 12);
+  // Groves alone in their row, placed once the road is known
+  const lone: { g: Grove; row: number; cx: number; cy: number; rx: number; ry: number }[] = [];
   let y = TOP;
   for (let start = 0; start < slots.length; start += cols) {
     const row = slots.slice(start, start + cols);
@@ -421,7 +424,8 @@ export function layoutForest(forest: Forest, width: number, opts: { rtl?: boolea
       const { rx, ry } = sizes.get(g) ?? { rx: 60, ry: 25 };
       const cx = X(left + slotW / 2 + (rnd() - 0.5) * slotW * 0.06);
       const cy = centre + (rnd() - 0.5) * Math.max(0, maxRy - ry);
-      groves.push({ ...placeGrove(g, cx, cy, rx, ry, 1, cap, flowerCap), labelW: Math.max(150, slotW - 12) });
+      if (row.length === 1) { lone.push({ g, row: rows.length, cx, cy, rx, ry }); return; }
+      groves.push({ ...placeGrove(g, cx, cy, rx, ry, 1, cap, flowerCap), labelW });
     });
     // Where the road may pass this row: between two slots, or beside the row
     const edges: number[] = [];
@@ -431,7 +435,15 @@ export function layoutForest(forest: Forest, width: number, opts: { rtl?: boolea
   }
   const height = Math.max(y + 40, TOP + 260);
 
-  const road = layRoad(rows, w, height, corner);
+  const xs = roadXs(rows, w, corner);
+  const road = layRoad(rows, xs, w, height, corner);
+  // A grove alone in its row has no gap for the road, which passes beside it;
+  // the grove steps aside, clear of the road and of the words at its foot
+  for (const { g, row, cx, cy, rx, ry } of lone) {
+    const away = Math.sign(cx - xs[row]) || (rtl ? -1 : 1);
+    const at = xs[row] + away * Math.max(Math.abs(cx - xs[row]), labelW / 2 + ROAD_HALF + 80);
+    groves.push({ ...placeGrove(g, Math.min(w - rx - 8, Math.max(rx + 8, at)), cy, rx, ry, 1, cap, flowerCap), labelW });
+  }
   const { loose, looseHidden, looseAt } = placeLoose(forest.loose, road, groves, corner, w);
   return {
     width: w, height, groves, road, loose, looseHidden, looseAt, corner,
@@ -525,27 +537,41 @@ function placeCorner(old: Grove[], slotLeft: number, top: number, slotW: number,
 }
 
 /**
- * The road climbs from the bottom between the groves of each row, taking
- * the gap nearest to where it already is, and ends at the old forest or
- * the top edge.
+ * Where the road crosses each row: between two groves where it can,
+ * swinging from one gap to the next, and in the top row through the gap
+ * beside the old forest. A row of one grove has no gap, so the road passes
+ * beside it, on the side nearer where it heads next.
  */
-function layRoad(rows: { top: number; bottom: number; edges: number[] }[], w: number, h: number, corner: OldCorner | null): { x: number; y: number }[] {
-  const lo = w * 0.05;
-  const hi = w * 0.95;
+function roadXs(rows: { edges: number[] }[], w: number, corner: OldCorner | null): number[] {
+  const fit = (e: number) => Math.min(w * 0.95, Math.max(w * 0.05, e));
+  const xs = rows.map((r, i): number | null => {
+    const gaps = r.edges.slice(1, -1).map(fit).sort((a, b) => a - b);
+    // In the top row it heads for the old forest, beside it or, alone there, into it
+    if (i === 0 && corner) return gaps.length ? (corner.x > w / 2 ? gaps[gaps.length - 1] : gaps[0]) : w * 0.5;
+    return gaps.length ? gaps[(rows.length - 1 - i) % gaps.length] : null;
+  });
+  for (let i = 0; i < rows.length; i++) {
+    if (xs[i] !== null) continue;
+    const edges = rows[i].edges;
+    const start = fit(edges[0]);
+    const end = fit(edges[edges.length - 1]);
+    const next = i > 0 ? xs[i - 1] : xs.find((x) => x !== null);
+    xs[i] = next != null && Math.abs(end - next) < Math.abs(start - next) ? end : start;
+  }
+  return xs as number[];
+}
+
+/** The road climbs from the bottom through each row, and ends at the old forest or the top edge */
+function layRoad(rows: { top: number; bottom: number; edges: number[] }[], xs: number[], w: number, h: number, corner: OldCorner | null): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
-  let x = w * 0.46;
   for (let i = rows.length - 1, turn = 0; i >= 0; i--, turn++) {
     const r = rows[i];
-    // Between two groves where it can, swinging from one gap to the next
-    const inner = r.edges.slice(1, -1);
-    const gaps = (inner.length ? inner : [w * 0.5]).map((e) => Math.min(hi, Math.max(lo, e))).sort((a, b) => a - b);
-    x = gaps[turn % gaps.length];
-    // In the top row it heads for the old forest, through the gap beside it
-    if (i === 0 && corner) x = corner.x > w / 2 ? gaps[gaps.length - 1] : gaps[0];
+    const x = xs[i];
     const sway = Math.min(16, (r.edges.length > 1 ? Math.abs(r.edges[1] - r.edges[0]) : w) * 0.05) * (turn % 2 ? 1 : -1);
     if (!points.length) points.push({ x: x + sway, y: h + 30 });
     points.push({ x: x + sway, y: r.bottom - 6 }, { x: x - sway, y: r.top + 18 });
   }
+  const x = xs.length ? xs[0] : w * 0.46;
   if (!points.length) points.push({ x, y: h + 30 });
   if (corner) points.push({ x: corner.x + corner.w * 0.15, y: corner.y + corner.h * 0.66 }, { x: corner.x + corner.w * 0.5, y: corner.y + corner.h * 0.6 });
   else points.push({ x, y: -30 });

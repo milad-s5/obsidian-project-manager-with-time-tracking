@@ -258,6 +258,44 @@ test("the road runs between the groves", () => {
   }
 });
 
+test("a grove alone in its row stands off the road, clear of the words by it", () => {
+  const projects = [0, 1, 2, 3].map((i) => ({ slug: `p${i}`, title: `Project ${i}`, status: "active" }));
+  projects.push({ slug: "app", title: "App", status: "done" });
+  const tasks: ForestTaskInput[] = [];
+  for (const p of projects) {
+    for (let j = 0; j < 20; j++) tasks.push(task(`${p.slug}-${j}`, { projectSlug: p.slug, totalHours: (j % 4) * 2 }));
+  }
+  for (let j = 0; j < 8; j++) tasks.push(task(`loose-${j}`, { projectSlug: "" }));
+  const forest = buildForest(input(tasks, { projects }));
+  assert.equal(forest.groves.length, 4);
+  // From a point to the nearest bit of the road
+  const fromRoad = (line: { x: number; y: number }[], x: number, y: number) => {
+    let best = Infinity;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1], b = line[i];
+      const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const k = len2 ? Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / len2)) : 0;
+      best = Math.min(best, Math.hypot(a.x + k * (b.x - a.x) - x, a.y + k * (b.y - a.y) - y));
+    }
+    return best;
+  };
+  for (const width of [360, 1100, 1500]) {
+    for (const rtl of [false, true]) {
+      const layout = layoutForest(forest, width, { rtl });
+      const where = `at width ${width}${rtl ? ", right to left" : ""}`;
+      for (const g of layout.groves) {
+        for (const t of g.trees) assert.ok(fromRoad(layout.road, t.x, t.y) > 22, `${g.grove.title}'s tree on the road ${where}`);
+      }
+      if (width < 1500) continue;
+      // Three groves and the corner, then one alone under them
+      const last = layout.groves[3];
+      assert.ok(last.cy > layout.groves[0].cy, "a row of its own");
+      assert.ok(layout.looseAt, "words by the road");
+      assert.ok(Math.abs(layout.looseAt.x - last.cx) > last.labelW / 2 + 60, `card clear of the words by the road ${where}`);
+    }
+  }
+});
+
 test("the same tasks always grow the same forest, mirrored right to left", () => {
   const a = layoutForest(bigForest(5, 10), 900);
   const b = layoutForest(bigForest(5, 10), 900);
